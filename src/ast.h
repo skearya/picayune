@@ -1,5 +1,7 @@
 #pragma once
 
+#include "span.h"
+#include <cstdint>
 #include <memory>
 #include <variant>
 
@@ -11,12 +13,14 @@ struct Binary;
 using Expr = std::variant<Binary, Number>;
 
 struct Number {
-  int value;
+  Span span;
+  int32_t value;
 
-  Number(const int value);
+  Number(const int32_t value);
 };
 
 struct Binary {
+  Span span;
   std::unique_ptr<Expr> left;
   Operator op;
   std::unique_ptr<Expr> right;

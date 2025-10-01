@@ -2,6 +2,7 @@
 #include "span.h"
 #include "token.h"
 #include <charconv>
+#include <cstdint>
 #include <string_view>
 
 void Tokenizer::skipWhitespace() {
@@ -80,7 +81,7 @@ Token Tokenizer::token() {
       }
 
       std::string_view substring = src.substr(start, current - start);
-      int intValue;
+      int32_t intValue;
 
       auto result =
           std::from_chars(substring.begin(), substring.end(), intValue);

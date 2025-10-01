@@ -1,6 +1,7 @@
 #pragma once
 
 #include "span.h"
+#include <cstdint>
 
 enum struct TokenKind {
   Num,
@@ -32,7 +33,7 @@ enum struct TokenKind {
 };
 
 union TokenValue {
-  int integer;
+  int32_t integer;
 };
 
 struct Token {

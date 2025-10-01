@@ -1,9 +1,10 @@
 #pragma once
 
 #include "ast.h"
+#include <cstdint>
 
 struct Interpreter {
-  int operator()(Number &num);
+  int32_t operator()(Number &num);
 
-  int operator()(Binary &num);
+  int32_t operator()(Binary &num);
 };
