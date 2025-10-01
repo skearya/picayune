@@ -22,5 +22,5 @@ struct Parser {
 
   Expr primary();
 
-  Operator tokenToOperator(TokenKind token);
+  Operator tokenToOperator(const TokenKind &token);
 };

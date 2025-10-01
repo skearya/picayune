@@ -16,7 +16,7 @@ struct Number {
   Span span;
   int32_t value;
 
-  Number(const int32_t value);
+  Number(Span span, int32_t value);
 };
 
 struct Binary {
@@ -25,5 +25,10 @@ struct Binary {
   Operator op;
   std::unique_ptr<Expr> right;
 
-  Binary(std::unique_ptr<Expr> l, Operator op, std::unique_ptr<Expr> r);
+  Binary(Span span, std::unique_ptr<Expr> l, Operator op,
+         std::unique_ptr<Expr> r);
 };
+
+Span getSpan(const Expr &expr);
+
+void printAst(const Expr &expr, uint32_t depth = 0);

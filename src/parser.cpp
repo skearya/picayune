@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "ast.h"
 
 /*
 
@@ -65,7 +66,7 @@ Parser::Parser(Tokenizer t) : tokenizer(t), current(tokenizer.token()) {}
 Token Parser::peek() { return current; }
 
 Token Parser::advance() {
-  Token prev = current;
+  const Token prev = current;
   current = tokenizer.token();
   return prev;
 }
@@ -76,12 +77,14 @@ Expr Parser::term() {
   Expr lhs = factor();
 
   while (peek().kind == TokenKind::Plus || peek().kind == TokenKind::Minus) {
-    Token op = advance();
+    const Token op = advance();
+    Expr rhs = factor();
 
     lhs = Binary{
+        getSpan(lhs).extend(getSpan(rhs)),
         std::make_unique<Expr>(std::move(lhs)),
         tokenToOperator(op.kind),
-        std::make_unique<Expr>(factor()),
+        std::make_unique<Expr>(std::move(rhs)),
     };
   }
 
@@ -92,12 +95,14 @@ Expr Parser::factor() {
   Expr lhs = primary();
 
   while (peek().kind == TokenKind::Star || peek().kind == TokenKind::Slash) {
-    Token op = advance();
+    const Token op = advance();
+    Expr rhs = factor();
 
     lhs = Binary{
+        getSpan(lhs).extend(getSpan(rhs)),
         std::make_unique<Expr>(std::move(lhs)),
         tokenToOperator(op.kind),
-        std::make_unique<Expr>(primary()),
+        std::make_unique<Expr>(std::move(rhs)),
     };
   }
 
@@ -106,15 +111,15 @@ Expr Parser::factor() {
 
 Expr Parser::primary() {
   if (peek().kind == TokenKind::Num) {
-    Token num = advance();
+    const Token num = advance();
 
-    return Number{num.value.integer};
+    return Number{num.span, num.value.integer};
   } else {
     throw std::runtime_error("Expected expression");
   }
 }
 
-Operator Parser::tokenToOperator(TokenKind token) {
+Operator Parser::tokenToOperator(const TokenKind &token) {
   switch (token) {
   case TokenKind::Plus:
     return Operator::Add;

@@ -5,6 +5,9 @@
 #include <cstdint>
 #include <string_view>
 
+Tokenizer::Tokenizer(std::string_view src)
+    : src(src), line(1), start(0), current(0) {}
+
 void Tokenizer::skipWhitespace() {
   while (true) {
     switch (peek()) {
@@ -43,9 +46,6 @@ char Tokenizer::next() {
 char Tokenizer::peek() {
   return current >= src.length() ? '\0' : src.at(current);
 }
-
-Tokenizer::Tokenizer(std::string_view src)
-    : src(src), line(1), start(0), current(0) {}
 
 Token Tokenizer::token() {
   skipWhitespace();
@@ -102,7 +102,7 @@ Token Tokenizer::token() {
     }
   }
 
-  auto span = Span{.line = line, .start = start, .end = current};
+  auto span = Span{line, start, current};
 
   return Token{.kind = kind, .value = value, .span = span};
 }

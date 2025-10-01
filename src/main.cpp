@@ -1,3 +1,4 @@
+#include "ast.h"
 #include "interpreter.h"
 #include "parser.h"
 #include "tokenizer.h"
@@ -8,4 +9,5 @@ int main(int, char **) {
   Expr root = parser.expression();
 
   std::println("{}", std::visit(Interpreter{}, root));
+  printAst(root);
 }

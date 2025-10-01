@@ -4,7 +4,7 @@
 #include <cstdint>
 
 struct Interpreter {
-  int32_t operator()(Number &num);
+  int32_t operator()(const Number &num);
 
-  int32_t operator()(Binary &num);
+  int32_t operator()(const Binary &num);
 };
