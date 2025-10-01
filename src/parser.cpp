@@ -1,5 +1,65 @@
 #include "parser.h"
 
+/*
+
+program: declaration* EOF
+
+(* Declarations *)
+
+declaration: function
+
+function: FUNCTION name LPAREN params? RPAREN RIGHTARROW type block
+
+(* Statements *)
+
+statement: block | let | if | return | expression-statement
+
+block: LBRACE statement* RBRACE
+
+let: LET IDENT EQUAL expression SEMI
+
+if:
+  | IF LPARAM expression RPARAM statement ELSE statement
+  | IF expression block
+
+return:
+  | RETURN expression SEMI
+  | RETURN SEMI
+
+expression-statement: expression SEMI
+
+(* Expressions *)
+
+expression: comparison
+
+equality: comparison | comparison ((EQEQ | BANGEQ) comparison)*
+
+comparison: term | term ((LT | LTEQ | GT | GTEQ) term)*
+
+term: factor | factor ((PLUS | MINUS) factor)*
+
+factor: primary | primary ((STAR | SLASH) primary)*
+
+primary:
+  | INT
+  | IDENT
+  | IDENT LPAREN arguments? RPAREN
+  | TRUE
+  | FALSE
+  | LPAREN expression RPAREN
+
+(* Helpers *)
+
+arguments: expression (COMMA expression)*
+
+1 + 2 + 3 + 4
+
+parameter: name COLON type
+
+parameters: param (COMMA param)*
+
+*/
+
 Parser::Parser(Tokenizer t) : tokenizer(t), current(tokenizer.token()) {}
 
 Token Parser::peek() { return current; }

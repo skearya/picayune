@@ -1,4 +1,5 @@
 #include "tokenizer.h"
+#include "span.h"
 #include "token.h"
 #include <charconv>
 #include <string_view>
@@ -100,9 +101,7 @@ Token Tokenizer::token() {
     }
   }
 
-  return Token{.kind = kind,
-               .value = value,
-               .line = line,
-               .start = start,
-               .end = current};
+  auto span = Span{.line = line, .start = start, .end = current};
+
+  return Token{.kind = kind, .value = value, .span = span};
 }

@@ -1,9 +1,35 @@
 #pragma once
 
-#include <cstdint>
-#include <string_view>
+#include "span.h"
 
-enum struct TokenKind { Plus, Minus, Star, Slash, Num, Ident, Eof };
+enum struct TokenKind {
+  Num,
+  Ident,
+  Plus,
+  Minus,
+  Star,
+  Slash,
+  EqEq,
+  BangEq,
+  Lt,
+  LtEq,
+  Gt,
+  GtEq,
+  Colon,
+  Comma,
+  LParen,
+  RParen,
+  Semi,
+
+  True,
+  False,
+  Fn,
+  If,
+  Else,
+  Return,
+
+  Eof
+};
 
 union TokenValue {
   int integer;
@@ -12,7 +38,5 @@ union TokenValue {
 struct Token {
   TokenKind kind;
   TokenValue value;
-  uint32_t line, start, end;
-
-  std::string_view src(std::string_view file);
+  Span span;
 };

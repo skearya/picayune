@@ -2,6 +2,7 @@
 #include "ast.h"
 
 int Interpreter::operator()(Number &num) { return num.value; };
+
 int Interpreter::operator()(Binary &num) {
   int lhs = std::visit(*this, *num.left);
   int rhs = std::visit(*this, *num.right);
