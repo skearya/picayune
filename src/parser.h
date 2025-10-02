@@ -16,6 +16,10 @@ struct Parser {
 
   Expr expression();
 
+  Expr equality();
+
+  Expr comparison();
+
   Expr term();
 
   Expr factor();

@@ -1,5 +1,9 @@
 #include "parser.h"
 #include "ast.h"
+#include "token.h"
+#include <memory>
+#include <stdexcept>
+#include <utility>
 
 /*
 
@@ -53,8 +57,6 @@ primary:
 
 arguments: expression (COMMA expression)*
 
-1 + 2 + 3 + 4
-
 parameter: name COLON type
 
 parameters: param (COMMA param)*
@@ -71,7 +73,44 @@ Token Parser::advance() {
   return prev;
 }
 
-Expr Parser::expression() { return term(); };
+Expr Parser::expression() { return equality(); };
+
+Expr Parser::equality() {
+  Expr lhs = comparison();
+
+  while (peek().kind == TokenKind::EqEq || peek().kind == TokenKind::BangEq) {
+    const Token op = advance();
+    Expr rhs = comparison();
+
+    lhs = Binary{
+        getSpan(lhs).extend(getSpan(rhs)),
+        std::make_unique<Expr>(std::move(lhs)),
+        tokenToOperator(op.kind),
+        std::make_unique<Expr>(std::move(rhs)),
+    };
+  }
+
+  return lhs;
+}
+
+Expr Parser::comparison() {
+  Expr lhs = term();
+
+  while (peek().kind == TokenKind::Lt || peek().kind == TokenKind::LtEq ||
+         peek().kind == TokenKind::Gt || peek().kind == TokenKind::GtEq) {
+    const Token op = advance();
+    Expr rhs = term();
+
+    lhs = Binary{
+        getSpan(lhs).extend(getSpan(rhs)),
+        std::make_unique<Expr>(std::move(lhs)),
+        tokenToOperator(op.kind),
+        std::make_unique<Expr>(std::move(rhs)),
+    };
+  }
+
+  return lhs;
+}
 
 Expr Parser::term() {
   Expr lhs = factor();
@@ -114,6 +153,29 @@ Expr Parser::primary() {
     const Token num = advance();
 
     return Number{num.span, num.value.integer};
+  } else if (peek().kind == TokenKind::True) {
+    const Token t = advance();
+
+    return Boolean{t.span, true};
+  } else if (peek().kind == TokenKind::False) {
+    const Token f = advance();
+
+    return Boolean{f.span, false};
+  } else if (peek().kind == TokenKind::Ident) {
+    Token ident = advance();
+
+    return Ident{ident.span, ident.span.src(tokenizer.src)};
+  } else if (peek().kind == TokenKind::LParen) {
+    Token start = advance();
+    Expr inner = expression();
+    const Token closing = advance();
+
+    if (closing.kind != TokenKind::RParen) {
+      throw std::runtime_error("Expected ')' after expression");
+    }
+
+    return Grouping{start.span.extend(closing.span),
+                    std::make_unique<Expr>(std::move(inner))};
   } else {
     throw std::runtime_error("Expected expression");
   }
@@ -129,6 +191,18 @@ Operator Parser::tokenToOperator(TokenKind token) {
     return Operator::Mul;
   case TokenKind::Slash:
     return Operator::Div;
+  case TokenKind::EqEq:
+    return Operator::Eq;
+  case TokenKind::BangEq:
+    return Operator::NotEq;
+  case TokenKind::Lt:
+    return Operator::Lt;
+  case TokenKind::LtEq:
+    return Operator::LtEq;
+  case TokenKind::Gt:
+    return Operator::Gt;
+  case TokenKind::GtEq:
+    return Operator::GtEq;
   default:
     throw std::runtime_error("Token cannot be converted to operator");
   }
