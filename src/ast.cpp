@@ -22,15 +22,15 @@ Grouping::Grouping(Span span, std::unique_ptr<Expr> inner)
     : span(span), inner(std::move(inner)) {}
 
 Span getSpan(const Expr &expr) {
-  struct Visitor {
-    Span operator()(const Number &e) { return e.span; };
-    Span operator()(const Boolean &e) { return e.span; };
-    Span operator()(const Binary &e) { return e.span; };
-    Span operator()(const Ident &e) { return e.span; };
-    Span operator()(const Grouping &e) { return e.span; };
+  const auto visitor = overloads{
+      [](const Number &e) { return e.span; },
+      [](const Boolean &e) { return e.span; },
+      [](const Binary &e) { return e.span; },
+      [](const Ident &e) { return e.span; },
+      [](const Grouping &e) { return e.span; },
   };
 
-  return std::visit(Visitor{}, expr);
+  return std::visit(visitor, expr);
 }
 
 const char *operatorName(const Operator &op) {
@@ -125,7 +125,8 @@ void printAst(const Expr &expr, std::string_view filename, std::string prefix,
         printLocation();
         std::println();
 
-        printAst(*e.inner, filename, prefix + (isLeft ? "│   " : "    "), false);
+        printAst(*e.inner, filename, prefix + (isLeft ? "│   " : "    "),
+                 false);
       },
   };
 
