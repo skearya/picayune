@@ -5,9 +5,19 @@
 #include <print>
 
 int main(int, char **) {
-  Parser parser{Tokenizer{std::string_view{"301 * 2"}}};
+  // auto filename = "example.lang";
+
+  // std::ifstream file{filename};
+  // std::stringstream buffer;
+  // buffer << file.rdbuf();
+  // file.close();
+
+  // auto content = buffer.str();
+
+  Parser parser{Tokenizer{std::string_view{"1 + 2 * 3 + 4 * 3 * 3 * 1"}}};
   Expr root = parser.expression();
 
-  std::println("{}", std::visit(Interpreter{}, root));
-  printAst(root);
+  printAst(root, std::string_view{"main.cpp"});
+
+  std::println("Result: {}", std::visit(Interpreter{}, root));
 }

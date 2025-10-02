@@ -31,4 +31,6 @@ struct Binary {
 
 Span getSpan(const Expr &expr);
 
-void printAst(const Expr &expr, uint32_t depth = 0);
+void printAst(const Expr &expr, std::string_view filename);
+void printAst(const Expr &expr, std::string_view filename, std::string prefix,
+              bool isLeft);

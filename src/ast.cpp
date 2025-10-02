@@ -2,8 +2,11 @@
 #include "span.h"
 #include "utils.h"
 #include <cstdint>
+#include <format>
 #include <memory>
 #include <print>
+#include <string_view>
+#include <utility>
 
 Number::Number(Span span, int32_t value) : span(span), value(value) {};
 
@@ -33,18 +36,58 @@ const char *operatorName(const Operator &op) {
   }
 }
 
-void printAst(const Expr &expr, uint32_t depth) {
-  for (uint32_t i = 0; i < depth * 2; i++) {
-    std::print("-");
+void printAst(const Expr &expr, std::string_view filename) {
+  printAst(expr, filename, "", false);
+}
+
+void printAst(const Expr &expr, std::string_view filename, std::string prefix,
+              bool isLeft) {
+  std::print("\033[90m");
+
+  if (prefix.empty()) {
+    std::print("> ");
+  } else {
+    std::print("{}", prefix);
+    std::print("{}", isLeft ? "├───" : "╰───");
   }
 
-  const auto visitor = overloads{
-      [](const Number &e) { std::println("Number {}", e.value); },
-      [depth](const Binary &e) {
-        std::println("Binary {}", operatorName(e.op));
+  std::print("\033[39m");
 
-        printAst(*e.left, depth + 1);
-        printAst(*e.right, depth + 1);
+  const auto printLocation = [&]() {
+    auto span = getSpan(expr);
+
+    std::print("\033[38:5:6m"); // Light White
+    std::print("\033[3m");      // Italic
+    std::print("[{}:{}:{}]", filename, span.line, span.start + 1);
+    std::print("\033[23m"); // End Italic
+    std::print("\033[39m"); // End Light White
+  };
+
+  const int colors[] = {
+      219,
+      181,
+      111,
+      36,
+  };
+
+  const auto visitor = overloads{
+      [&](const Number &e) {
+        std::print("\033[38:5:{}m", colors[0]);
+        std::print("Number {} - ", e.value);
+        std::print("\033[39m");
+        printLocation();
+        std::println();
+      },
+      [&](const Binary &e) {
+        std::print("\033[38:5:{}m", colors[1]);
+        std::print("Binary {} - ", operatorName(e.op));
+        std::print("\033[39m");
+        printLocation();
+        std::println();
+
+        printAst(*e.left, filename, prefix + (isLeft ? "│   " : "    "), true);
+        printAst(*e.right, filename, prefix + (isLeft ? "│   " : "    "),
+                 false);
       },
   };
 

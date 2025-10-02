@@ -119,7 +119,7 @@ Expr Parser::primary() {
   }
 }
 
-Operator Parser::tokenToOperator(const TokenKind &token) {
+Operator Parser::tokenToOperator(TokenKind token) {
   switch (token) {
   case TokenKind::Plus:
     return Operator::Add;

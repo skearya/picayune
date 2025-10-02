@@ -17,8 +17,10 @@ add_definitions(${LLVM_DEFINITIONS_LIST})
 
 file(GLOB SOURCES "src/*.cpp")
 
-add_executable(testing ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES})
 
 llvm_map_components_to_libnames(llvm_libs support core irreader)
 
-target_link_libraries(testing ${llvm_libs})
+target_link_libraries(${PROJECT_NAME} ${llvm_libs})
+
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Werror -Wpedantic)
