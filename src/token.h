@@ -10,6 +10,7 @@ enum struct TokenKind {
   Minus,
   Star,
   Slash,
+  Eq,
   EqEq,
   BangEq,
   Lt,

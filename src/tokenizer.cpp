@@ -3,6 +3,7 @@
 #include "token.h"
 #include <charconv>
 #include <cstdint>
+#include <stdexcept>
 #include <string_view>
 
 Tokenizer::Tokenizer(std::string_view src)
@@ -10,13 +11,10 @@ Tokenizer::Tokenizer(std::string_view src)
 
 void Tokenizer::skipWhitespace() {
   while (true) {
-    switch (peek()) {
-    case ' ':
-    case '\t':
-    case '\n':
+    if (std::isspace(peek())) {
       next();
-      break;
-    default:
+      continue;
+    } else {
       return;
     }
   }
@@ -69,6 +67,49 @@ Token Tokenizer::token() {
   case '/':
     kind = TokenKind::Slash;
     break;
+  case '=':
+    if (match('=')) {
+      kind = TokenKind::EqEq;
+    } else {
+      kind = TokenKind::Eq;
+    }
+    break;
+  case '!':
+    if (match('=')) {
+      kind = TokenKind::BangEq;
+    } else {
+      throw std::runtime_error("Expected '=' after '!'");
+    }
+    break;
+  case '<':
+    if (match('=')) {
+      kind = TokenKind::LtEq;
+    } else {
+      kind = TokenKind::Lt;
+    }
+    break;
+  case '>':
+    if (match('=')) {
+      kind = TokenKind::GtEq;
+    } else {
+      kind = TokenKind::Gt;
+    }
+    break;
+  case ':':
+    kind = TokenKind::Colon;
+    break;
+  case ',':
+    kind = TokenKind::Comma;
+    break;
+  case '(':
+    kind = TokenKind::LParen;
+    break;
+  case ')':
+    kind = TokenKind::RParen;
+    break;
+  case ';':
+    kind = TokenKind::Semi;
+    break;
   case '\0':
     kind = TokenKind::Eof;
     break;
@@ -92,10 +133,26 @@ Token Tokenizer::token() {
 
       value = TokenValue{.integer = intValue};
     } else if (std::isalpha(c)) {
-      kind = TokenKind::Ident;
-
       while (std::isalpha(peek())) {
         next();
+      }
+
+      auto matched = src.substr(start, current - start);
+
+      if (matched == "true") {
+        kind = TokenKind::True;
+      } else if (matched == "false") {
+        kind = TokenKind::False;
+      } else if (matched == "fn") {
+        kind = TokenKind::Fn;
+      } else if (matched == "if") {
+        kind = TokenKind::If;
+      } else if (matched == "else") {
+        kind = TokenKind::Else;
+      } else if (matched == "return") {
+        kind = TokenKind::Return;
+      } else {
+        kind = TokenKind::Ident;
       }
     } else {
       throw std::runtime_error("Unexpected character");
