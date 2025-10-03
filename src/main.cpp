@@ -12,8 +12,9 @@ int main(int, char **) {
 
   // auto content = buffer.str();
 
-  Parser parser{Tokenizer{std::string_view{"1 + 2 * 3 > (true + 21)"}}};
-  Expr root = parser.expression();
+  Parser parser{Tokenizer{std::string_view{
+      "if (9 + 10 == 21) { return a + b; } else { let x = 0; return x; }"}}};
+  Stmt root = parser.statement();
 
-  printAst(root, std::string_view{"main.cpp"});
+  printStmt(root, std::string_view{"main.cpp"});
 }

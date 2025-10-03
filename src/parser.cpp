@@ -2,8 +2,10 @@
 #include "ast.h"
 #include "token.h"
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 /*
 
@@ -25,7 +27,7 @@ let: LET IDENT EQUAL expression SEMI
 
 if:
   | IF LPARAM expression RPARAM statement ELSE statement
-  | IF expression block
+  | IF LPARAM expression RPARAM statement
 
 return:
   | RETURN expression SEMI
@@ -179,6 +181,135 @@ Expr Parser::primary() {
   } else {
     throw std::runtime_error("Expected expression");
   }
+}
+
+Stmt Parser::statement() {
+  switch (peek().kind) {
+  case TokenKind::LBrace:
+    return block();
+  case TokenKind::Let:
+    return let();
+  case TokenKind::If:
+    return ifStatement();
+  case TokenKind::Return:
+    return returnStatement();
+  default:
+    return expressionStatement();
+  }
+}
+
+Stmt Parser::block() {
+  Token start = advance();
+
+  if (start.kind != TokenKind::LBrace) {
+    throw std::runtime_error("Expected '{'");
+  }
+
+  std::vector<Stmt> stmts;
+
+  while (peek().kind != TokenKind::RBrace) {
+    stmts.push_back(statement());
+  }
+
+  Token end = advance();
+
+  return Block{start.span.extend(end.span), std::move(stmts)};
+}
+
+Stmt Parser::let() {
+  Token start = advance();
+
+  if (start.kind != TokenKind::Let) {
+    throw std::runtime_error("Expected 'let'");
+  }
+
+  Token ident = advance();
+
+  if (ident.kind != TokenKind::Ident) {
+    throw std::runtime_error("Expected identifier after let");
+  }
+
+  if (advance().kind != TokenKind::Eq) {
+    throw std::runtime_error("Expected '=' after identifier");
+  }
+
+  Expr initializer = expression();
+
+  Token closing = advance();
+
+  if (closing.kind != TokenKind::Semi) {
+    throw std::runtime_error("Expected ';' after expression");
+  }
+
+  return Let{start.span.extend(closing.span), ident.span.src(tokenizer.src),
+             std::move(initializer)};
+}
+
+Stmt Parser::ifStatement() {
+  Token start = advance();
+
+  if (start.kind != TokenKind::If) {
+    throw std::runtime_error("Expected 'if'");
+  }
+
+  if (advance().kind != TokenKind::LParen) {
+    throw std::runtime_error("Expected '(' after if");
+  }
+
+  Expr cond = expression();
+
+  if (advance().kind != TokenKind::RParen) {
+    throw std::runtime_error("Expected ')' after if condition");
+  }
+
+  Stmt thenStmt = statement();
+
+  if (peek().kind == TokenKind::Else) {
+    advance();
+    Stmt elseStmt = statement();
+
+    return If{start.span.extend(getSpan(elseStmt)), std::move(cond),
+              std::make_unique<Stmt>(std::move(thenStmt)),
+              std::optional{std::make_unique<Stmt>(std::move(elseStmt))}};
+  } else {
+    return If{start.span.extend(getSpan(thenStmt)), std::move(cond),
+              std::make_unique<Stmt>(std::move(thenStmt)), std::nullopt};
+  }
+}
+
+Stmt Parser::returnStatement() {
+  Token start = advance();
+
+  if (start.kind != TokenKind::Return) {
+    throw std::runtime_error("Expected 'return'");
+  }
+
+  if (peek().kind == TokenKind::Semi) {
+    const Token semi = advance();
+
+    return Return{start.span.extend(semi.span), std::nullopt};
+  } else {
+    Expr value = expression();
+    const Token closing = advance();
+
+    if (closing.kind != TokenKind::Semi) {
+      throw std::runtime_error("Expected ';' after expression");
+    }
+
+    return Return{start.span.extend(closing.span),
+                  std::optional{std::move(value)}};
+  }
+}
+
+Stmt Parser::expressionStatement() {
+  Expr expr = expression();
+  const Token closing = advance();
+
+  if (closing.kind != TokenKind::Semi) {
+    throw std::runtime_error("Expected ';' after expression");
+  }
+
+  return ExprStmt{getSpan(expr).extend(closing.span), std::move(expr)};
 }
 
 Operator Parser::tokenToOperator(TokenKind token) {

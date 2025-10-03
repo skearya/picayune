@@ -15,16 +15,18 @@ struct Parser {
   Token advance();
 
   Expr expression();
-
   Expr equality();
-
   Expr comparison();
-
   Expr term();
-
   Expr factor();
-
   Expr primary();
+
+  Stmt statement();
+  Stmt block();
+  Stmt let();
+  Stmt ifStatement();
+  Stmt returnStatement();
+  Stmt expressionStatement();
 
   Operator tokenToOperator(TokenKind token);
 };

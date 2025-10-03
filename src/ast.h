@@ -3,8 +3,10 @@
 #include "span.h"
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <variant>
+#include <vector>
 
 enum struct Operator {
   Add,
@@ -65,8 +67,61 @@ struct Grouping {
   Grouping(Span span, std::unique_ptr<Expr> inner);
 };
 
-Span getSpan(const Expr &expr);
+struct Block;
+struct Let;
+struct If;
+struct Return;
+struct ExprStmt;
 
-void printAst(const Expr &expr, std::string_view filename);
-void printAst(const Expr &expr, std::string_view filename, std::string prefix,
-              bool isLeft);
+using Stmt = std::variant<Block, Let, If, Return, ExprStmt>;
+
+struct Block {
+  Span span;
+  std::vector<Stmt> statements;
+
+  Block(Span span, std::vector<Stmt> statements);
+};
+
+struct Let {
+  Span span;
+  std::string_view name;
+  Expr initializer;
+
+  Let(Span span, std::string_view name, Expr initializer);
+};
+
+struct If {
+  Span span;
+  Expr cond;
+  std::unique_ptr<Stmt> thenStatement;
+  std::optional<std::unique_ptr<Stmt>> elseStatement;
+
+  If(Span span, Expr cond, std::unique_ptr<Stmt> thenStatement,
+     std::optional<std::unique_ptr<Stmt>> elseStatement);
+};
+
+struct Return {
+  Span span;
+  std::optional<Expr> value;
+
+  Return(Span span, std::optional<Expr> value);
+};
+
+struct ExprStmt {
+  Span span;
+  Expr expression;
+
+  ExprStmt(Span span, Expr expression);
+};
+
+template <typename T> Span getSpan(const T &arg) {
+  return std::visit([](const auto &e) { return e.span; }, arg);
+}
+
+void printExpr(const Expr &expr, std::string_view filename);
+void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
+               bool isLeft);
+
+void printStmt(const Stmt &stmt, std::string_view filename);
+void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
+               bool isLeft);

@@ -107,6 +107,12 @@ Token Tokenizer::token() {
   case ')':
     kind = TokenKind::RParen;
     break;
+  case '{':
+    kind = TokenKind::LBrace;
+    break;
+  case '}':
+    kind = TokenKind::RBrace;
+    break;
   case ';':
     kind = TokenKind::Semi;
     break;
@@ -145,6 +151,8 @@ Token Tokenizer::token() {
         kind = TokenKind::False;
       } else if (matched == "fn") {
         kind = TokenKind::Fn;
+      } else if (matched == "let") {
+        kind = TokenKind::Let;
       } else if (matched == "if") {
         kind = TokenKind::If;
       } else if (matched == "else") {
