@@ -125,3 +125,5 @@ void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
 void printStmt(const Stmt &stmt, std::string_view filename);
 void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
                bool isLeft);
+
+const char *operatorName(const Operator &op);
