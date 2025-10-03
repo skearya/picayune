@@ -12,9 +12,16 @@ int main(int, char **) {
 
   // auto content = buffer.str();
 
-  Parser parser{Tokenizer{std::string_view{
-      "if (9 + 10 == 21) { return a + b; } else { let x = 0; return x; }"}}};
-  Stmt root = parser.statement();
+  auto source = R"(
+    if (9 + 10 == 21) {
+      return a + b;
+    } else {
+      let something = x * y;
+      return something;
+    }
+  )";
+
+  Stmt root = Parser{Tokenizer{std::string_view{source}}}.statement();
 
   printStmt(root, std::string_view{"main.cpp"});
 }

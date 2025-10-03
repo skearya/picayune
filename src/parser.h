@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "token.h"
 #include "tokenizer.h"
+#include <string_view>
 
 struct Parser {
   Tokenizer tokenizer;
@@ -13,6 +14,8 @@ struct Parser {
   Token peek();
 
   Token advance();
+
+  Token expect(TokenKind kind, std::string_view error);
 
   Expr expression();
   Expr equality();
