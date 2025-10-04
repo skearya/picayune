@@ -25,9 +25,10 @@ struct Number;
 struct Boolean;
 struct Ident;
 struct Binary;
+struct Call;
 struct Grouping;
 
-using Expr = std::variant<Number, Boolean, Ident, Binary, Grouping>;
+using Expr = std::variant<Number, Boolean, Ident, Binary, Call, Grouping>;
 
 struct Number {
   Span span;
@@ -58,6 +59,14 @@ struct Binary {
 
   Binary(Span span, std::unique_ptr<Expr> l, Operator op,
          std::unique_ptr<Expr> r);
+};
+
+struct Call {
+  Span span;
+  std::string_view function;
+  std::vector<Expr> arguments;
+
+  Call(Span span, std::string_view function, std::vector<Expr> arguments);
 };
 
 struct Grouping {

@@ -22,6 +22,9 @@ Binary::Binary(Span span, std::unique_ptr<Expr> l, Operator op,
                std::unique_ptr<Expr> r)
     : span(span), left(std::move(l)), op(op), right(std::move(r)) {}
 
+Call::Call(Span span, std::string_view function, std::vector<Expr> arguments)
+    : span(span), function(function), arguments(std::move(arguments)) {};
+
 Grouping::Grouping(Span span, std::unique_ptr<Expr> inner)
     : span(span), inner(std::move(inner)) {}
 
@@ -106,6 +109,15 @@ void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
         printExpr(*e.right, filename, prefix + (isLeft ? "│   " : "    "),
                   false);
       },
+      [&](const Call &e) {
+        printHeader(111, std::format("Call {}", e.function), filename, e.span);
+
+        for (size_t i = 0; i < e.arguments.size(); i++) {
+          printExpr(e.arguments.at(i), filename,
+                    prefix + (isLeft ? "│   " : "    "),
+                    e.arguments.size() == 1 ? false : i == 0);
+        }
+      },
       [&](const Grouping &e) {
         printHeader(36, "Grouping", filename, e.span);
 
@@ -142,7 +154,6 @@ void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
           printStmt(s.statements.at(i), filename,
                     prefix + (isLeft ? "│   " : "    "),
                     s.statements.size() == 1 ? false : i == 0);
-          ;
         }
       },
       [&](const Let &s) { printHeader(39, "Let", filename, s.span); },

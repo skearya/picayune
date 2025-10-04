@@ -38,5 +38,7 @@ struct Parser {
   Parameter parameter();
   std::vector<Parameter> parameters();
 
+  std::vector<Expr> arguments();
+
   Operator tokenToOperator(TokenKind token);
 };

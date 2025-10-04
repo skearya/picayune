@@ -176,7 +176,18 @@ Expr Parser::primary() {
   } else if (peek().kind == TokenKind::Ident) {
     Token ident = advance();
 
-    return Ident{ident.span, ident.span.src(tokenizer.src)};
+    if (peek().kind == TokenKind::LParen) {
+      advance();
+
+      std::vector<Expr> args = arguments();
+
+      Token end = expect(TokenKind::RParen, "Expected ')' after arguments");
+
+      return Call{ident.span.extend(end.span), ident.span.src(tokenizer.src),
+                  std::move(args)};
+    } else {
+      return Ident{ident.span, ident.span.src(tokenizer.src)};
+    }
   } else if (peek().kind == TokenKind::LParen) {
     Token start = advance();
     Expr inner = expression();
@@ -289,7 +300,7 @@ Decl Parser::function() {
 
   expect(TokenKind::RParen, "Expected ')' after function parameters");
 
-  expect(TokenKind::Colon, "Expected colon after function parameters");
+  expect(TokenKind::Colon, "Expected ':' after function parameters");
 
   Token returnType =
       expect(TokenKind::Ident, "Expected function return type after colon");
@@ -340,6 +351,22 @@ std::vector<Parameter> Parser::parameters() {
 
   return params;
 }
+
+std::vector<Expr> Parser::arguments() {
+  std::vector<Expr> args;
+
+  if (peek().kind != TokenKind::RParen) {
+    args.push_back(expression());
+
+    while (peek().kind == TokenKind::Comma) {
+      advance();
+
+      args.push_back(expression());
+    }
+  }
+
+  return args;
+};
 
 Operator Parser::tokenToOperator(TokenKind token) {
   switch (token) {
