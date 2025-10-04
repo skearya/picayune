@@ -151,18 +151,18 @@ template <typename T> Span getSpan(const T &arg) {
 
 void printExpr(const Expr &expr, std::string_view filename);
 void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
-               bool isLeft);
+               std::string_view label, bool isLeft);
 
 void printStmt(const Stmt &stmt, std::string_view filename);
 void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
-               bool isLeft);
+               std::string_view label, bool isLeft);
 
 void printDecl(const Decl &decl, std::string_view filename);
 void printDecl(const Decl &decl, std::string_view filename, std::string prefix,
-               bool isLeft);
+               std::string_view label, bool isLeft);
 
 void printBlock(const Block &block, std::string_view filename);
 void printBlock(const Block &block, std::string_view filename,
-                std::string prefix, bool isLeft);
+                std::string prefix, std::string_view label, bool isLeft);
 
 const char *operatorName(const Operator &op);
