@@ -5,7 +5,9 @@
 
 struct Tokenizer {
   std::string_view src;
-  uint32_t line, start, current;
+  uint32_t line;
+  uint32_t start;
+  uint32_t current;
 
   Tokenizer(std::string_view src);
 

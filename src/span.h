@@ -8,8 +8,6 @@ struct Span {
   uint32_t start;
   uint32_t end;
 
-  Span(uint32_t line, uint32_t start, uint32_t end);
-
   Span extend(const Span &other);
 
   std::string_view src(std::string_view file);

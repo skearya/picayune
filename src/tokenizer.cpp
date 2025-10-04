@@ -169,5 +169,5 @@ Token Tokenizer::token() {
 
   auto span = Span{line, start, current};
 
-  return Token{.kind = kind, .value = value, .span = span};
+  return Token{kind, value, span};
 }

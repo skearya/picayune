@@ -8,56 +8,6 @@
 #include <print>
 #include <string>
 #include <string_view>
-#include <utility>
-
-// Expressions
-
-Number::Number(Span span, int32_t value) : span(span), value(value) {};
-
-Boolean::Boolean(Span span, bool value) : span(span), value(value) {};
-
-Ident::Ident(Span span, std::string_view name) : span(span), name(name) {};
-
-Binary::Binary(Span span, std::unique_ptr<Expr> l, Operator op,
-               std::unique_ptr<Expr> r)
-    : span(span), left(std::move(l)), op(op), right(std::move(r)) {}
-
-Call::Call(Span span, std::string_view function, std::vector<Expr> arguments)
-    : span(span), function(function), arguments(std::move(arguments)) {};
-
-Grouping::Grouping(Span span, std::unique_ptr<Expr> inner)
-    : span(span), inner(std::move(inner)) {}
-
-// Statements
-
-Block::Block(Span span, std::vector<Stmt> statements)
-    : span(span), statements(std::move(statements)) {}
-
-Let::Let(Span span, std::string_view name, Expr initializer)
-    : span(span), name(name), initializer(std::move(initializer)) {}
-
-If::If(Span span, Expr cond, std::unique_ptr<Stmt> thenStatement,
-       std::optional<std::unique_ptr<Stmt>> elseStatement)
-    : span(span), cond(std::move(cond)),
-      thenStatement(std::move(thenStatement)),
-      elseStatement(std::move(elseStatement)) {}
-
-Return::Return(Span span, std::optional<Expr> value)
-    : span(span), value(std::move(value)) {}
-
-ExprStmt::ExprStmt(Span span, Expr expression)
-    : span(span), expression(std::move(expression)) {}
-
-// Declarations
-
-Parameter::Parameter(std::string_view name, std::string_view type)
-    : name(name), type(type) {}
-
-Function::Function(Span span, std::string_view name,
-                   std::vector<Parameter> params, std::string_view returnType,
-                   Block body)
-    : span(span), name(name), params(params), returnType(returnType),
-      body(std::move(body)) {}
 
 void startPrint(std::string_view prefix, std::string_view label, bool isLeft) {
   std::print("\033[90m");
