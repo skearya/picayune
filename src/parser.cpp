@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "ast.h"
+#include "span.h"
 #include "token.h"
 #include <memory>
 #include <optional>
@@ -16,7 +17,7 @@ program: declaration* EOF
 
 declaration: function
 
-function: FUNCTION name LPAREN params? RPAREN RIGHTARROW type block
+function: FUNCTION name LPAREN params? RPAREN COLON type block
 
 (* Statements *)
 
@@ -204,20 +205,6 @@ Stmt Parser::statement() {
   }
 }
 
-Stmt Parser::block() {
-  Token start = expect(TokenKind::LBrace, "Expected '{'");
-
-  std::vector<Stmt> stmts;
-
-  while (peek().kind != TokenKind::RBrace) {
-    stmts.push_back(statement());
-  }
-
-  Token end = advance();
-
-  return Block{start.span.extend(end.span), std::move(stmts)};
-}
-
 Stmt Parser::let() {
   Token start = expect(TokenKind::Let, "Expected 'let'");
 
@@ -280,6 +267,78 @@ Stmt Parser::expressionStatement() {
       expect(TokenKind::Semi, "Expected ';' after expression");
 
   return ExprStmt{getSpan(expr).extend(closing.span), std::move(expr)};
+}
+
+Decl Parser::declaration() {
+  switch (peek().kind) {
+  case TokenKind::Function:
+    return function();
+  default:
+    throw std::runtime_error("Expected declaration.");
+  }
+}
+
+Decl Parser::function() {
+  Token start = expect(TokenKind::Function, "Expected 'function'.");
+
+  Token name = expect(TokenKind::Ident, "Expected function name");
+
+  expect(TokenKind::LParen, "Expected '(' after function name");
+
+  std::vector<Parameter> params = parameters();
+
+  expect(TokenKind::RParen, "Expected ')' after function parameters");
+
+  expect(TokenKind::Colon, "Expected colon after function parameters");
+
+  Token returnType =
+      expect(TokenKind::Ident, "Expected function return type after colon");
+
+  Block body = block();
+
+  return Function{start.span.extend(body.span), name.span.src(tokenizer.src),
+                  std::move(params), returnType.span.src(tokenizer.src),
+                  std::move(body)};
+}
+
+Block Parser::block() {
+  Token start = expect(TokenKind::LBrace, "Expected '{'");
+
+  std::vector<Stmt> stmts;
+
+  while (peek().kind != TokenKind::RBrace) {
+    stmts.push_back(statement());
+  }
+
+  Token end = advance();
+
+  return Block{start.span.extend(end.span), std::move(stmts)};
+}
+
+Parameter Parser::parameter() {
+  Token ident = expect(TokenKind::Ident, "Expected parameter name");
+
+  expect(TokenKind::Colon, "Expected colon after parameter name");
+
+  Token type = expect(TokenKind::Ident, "Expected parameter type");
+
+  return Parameter{ident.span.src(tokenizer.src), type.span.src(tokenizer.src)};
+}
+
+std::vector<Parameter> Parser::parameters() {
+  std::vector<Parameter> params;
+
+  if (peek().kind != TokenKind::RParen) {
+    params.push_back(parameter());
+
+    while (peek().kind == TokenKind::Comma) {
+      advance();
+
+      params.push_back(parameter());
+    }
+  }
+
+  return params;
 }
 
 Operator Parser::tokenToOperator(TokenKind token) {

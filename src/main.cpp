@@ -1,6 +1,7 @@
 #include "ast.h"
 #include "parser.h"
 #include "tokenizer.h"
+#include <string_view>
 
 int main(int, char **) {
   // auto filename = "example.lang";
@@ -13,15 +14,16 @@ int main(int, char **) {
   // auto content = buffer.str();
 
   auto source = R"(
-    if (9 + 10 == 21) {
-      return a + b;
-    } else {
-      let something = x * y;
-      return something;
+    function factorial(n: u32): void {
+      if (n == 0) {
+        return 1;
+      } else {
+        return n * factorial(n - 1);
+      }
     }
   )";
 
-  Stmt root = Parser{Tokenizer{std::string_view{source}}}.statement();
+  Decl root = Parser{Tokenizer{std::string_view{source}}}.declaration();
 
-  printStmt(root, std::string_view{"main.cpp"});
+  printDecl(root, std::string_view{"main.cpp"});
 }

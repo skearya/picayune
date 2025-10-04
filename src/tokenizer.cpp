@@ -139,7 +139,7 @@ Token Tokenizer::token() {
 
       value = TokenValue{.integer = intValue};
     } else if (std::isalpha(c)) {
-      while (std::isalpha(peek())) {
+      while (std::isalpha(peek()) || std::isdigit(peek())) {
         next();
       }
 
@@ -149,8 +149,8 @@ Token Tokenizer::token() {
         kind = TokenKind::True;
       } else if (matched == "false") {
         kind = TokenKind::False;
-      } else if (matched == "fn") {
-        kind = TokenKind::Fn;
+      } else if (matched == "function") {
+        kind = TokenKind::Function;
       } else if (matched == "let") {
         kind = TokenKind::Let;
       } else if (matched == "if") {

@@ -27,7 +27,7 @@ enum struct TokenKind {
 
   True,
   False,
-  Fn,
+  Function,
   Let,
   If,
   Else,

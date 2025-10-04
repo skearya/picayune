@@ -25,11 +25,18 @@ struct Parser {
   Expr primary();
 
   Stmt statement();
-  Stmt block();
   Stmt let();
   Stmt ifStatement();
   Stmt returnStatement();
   Stmt expressionStatement();
+
+  Decl declaration();
+  Decl function();
+
+  Block block();
+
+  Parameter parameter();
+  std::vector<Parameter> parameters();
 
   Operator tokenToOperator(TokenKind token);
 };

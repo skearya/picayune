@@ -114,6 +114,28 @@ struct ExprStmt {
   ExprStmt(Span span, Expr expression);
 };
 
+struct Function;
+
+using Decl = std::variant<Function>;
+
+struct Parameter {
+  std::string_view name;
+  std::string_view type;
+
+  Parameter(std::string_view name, std::string_view type);
+};
+
+struct Function {
+  Span span;
+  std::string_view name;
+  std::vector<Parameter> params;
+  std::string_view returnType;
+  Block body;
+
+  Function(Span span, std::string_view name, std::vector<Parameter> params,
+           std::string_view returnType, Block body);
+};
+
 template <typename T> Span getSpan(const T &arg) {
   return std::visit([](const auto &e) { return e.span; }, arg);
 }
@@ -125,5 +147,13 @@ void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
 void printStmt(const Stmt &stmt, std::string_view filename);
 void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
                bool isLeft);
+
+void printDecl(const Decl &decl, std::string_view filename);
+void printDecl(const Decl &decl, std::string_view filename, std::string prefix,
+               bool isLeft);
+
+void printBlock(const Block &block, std::string_view filename);
+void printBlock(const Block &block, std::string_view filename,
+                std::string prefix, bool isLeft);
 
 const char *operatorName(const Operator &op);

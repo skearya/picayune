@@ -45,6 +45,17 @@ Return::Return(Span span, std::optional<Expr> value)
 ExprStmt::ExprStmt(Span span, Expr expression)
     : span(span), expression(std::move(expression)) {}
 
+// Declarations
+
+Parameter::Parameter(std::string_view name, std::string_view type)
+    : name(name), type(type) {}
+
+Function::Function(Span span, std::string_view name,
+                   std::vector<Parameter> params, std::string_view returnType,
+                   Block body)
+    : span(span), name(name), params(params), returnType(returnType),
+      body(std::move(body)) {}
+
 void printHeader(uint8_t color, std::string_view label,
                  std::string_view filename, const Span &span) {
   std::print("\033[38:5:{}m", color);
@@ -164,6 +175,76 @@ void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
   };
 
   std::visit(visitor, stmt);
+}
+
+void printDecl(const Decl &decl, std::string_view filename) {
+  printDecl(decl, filename, "", false);
+}
+
+void printDecl(const Decl &decl, std::string_view filename, std::string prefix,
+               bool isLeft) {
+  std::print("\033[90m");
+
+  if (prefix.empty()) {
+    std::print("> ");
+  } else {
+    std::print("{}", prefix);
+    std::print("{}", isLeft ? "├───" : "╰───");
+  }
+
+  std::print("\033[39m");
+
+  const auto visitor = overloads{
+      [&](const Function &d) {
+        std::string header{std::format("Function {}", d.name)};
+
+        header += "(";
+
+        for (uint32_t i = 0; i < d.params.size(); i++) {
+          auto &param = d.params.at(i);
+          header += std::format("{}: {}", param.name, param.type);
+
+          if (i != d.params.size() - 1) {
+            header += ", ";
+          }
+        }
+
+        header += "): ";
+        header += d.returnType;
+
+        printHeader(219, header, filename, d.span);
+        printBlock(d.body, filename, prefix + (isLeft ? "│   " : "    "),
+                   false);
+      },
+  };
+
+  std::visit(visitor, decl);
+}
+
+void printBlock(const Block &block, std::string_view filename) {
+  printBlock(block, filename, "", false);
+}
+
+void printBlock(const Block &block, std::string_view filename,
+                std::string prefix, bool isLeft) {
+  std::print("\033[90m");
+
+  if (prefix.empty()) {
+    std::print("> ");
+  } else {
+    std::print("{}", prefix);
+    std::print("{}", isLeft ? "├───" : "╰───");
+  }
+
+  std::print("\033[39m");
+
+  printHeader(219, "Block", filename, block.span);
+
+  for (size_t i = 0; i < block.statements.size(); i++) {
+    printStmt(block.statements.at(i), filename,
+              prefix + (isLeft ? "│   " : "    "),
+              block.statements.size() == 1 ? false : i == 0);
+  }
 }
 
 const char *operatorName(const Operator &op) {
