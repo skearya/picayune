@@ -4,6 +4,7 @@
 #include "token.h"
 #include "tokenizer.h"
 #include <string_view>
+#include <vector>
 
 struct Parser {
   Tokenizer tokenizer;
@@ -17,28 +18,32 @@ struct Parser {
 
   Token expect(TokenKind kind, std::string_view error);
 
-  Expr expression();
-  Expr equality();
-  Expr comparison();
-  Expr term();
-  Expr factor();
-  Expr primary();
+  Ast::Expr expression();
+  Ast::Expr equality();
+  Ast::Expr comparison();
+  Ast::Expr term();
+  Ast::Expr factor();
+  Ast::Expr primary();
 
-  Stmt statement();
-  Stmt let();
-  Stmt ifStatement();
-  Stmt returnStatement();
-  Stmt expressionStatement();
+  Ast::Stmt statement();
+  Ast::Stmt let();
+  Ast::Stmt ifStatement();
+  Ast::Stmt returnStatement();
+  Ast::Stmt expressionStatement();
 
-  Decl declaration();
-  Decl function();
+  Ast::Decl declaration();
+  Ast::Decl function();
 
-  Block block();
+  std::vector<Ast::Decl> program();
 
-  Parameter parameter();
-  std::vector<Parameter> parameters();
+  // Helpers
 
-  std::vector<Expr> arguments();
+  Ast::Block block();
 
-  Operator tokenToOperator(TokenKind token);
+  Ast::Parameter parameter();
+  std::vector<Ast::Parameter> parameters();
+
+  std::vector<Ast::Expr> arguments();
+
+  Ast::Operator tokenToOperator(TokenKind token);
 };

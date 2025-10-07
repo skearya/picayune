@@ -1,3 +1,4 @@
+#include "printer.h"
 #include "ast.h"
 #include "span.h"
 #include "utils.h"
@@ -45,25 +46,25 @@ void printHeader(uint8_t color, std::string_view label,
   std::println();
 }
 
-void printExpr(const Expr &expr, std::string_view filename) {
+void printExpr(const Ast::Expr &expr, std::string_view filename) {
   printExpr(expr, filename, "", "", false);
 }
 
-void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
-               std::string_view label, bool isLeft) {
+void printExpr(const Ast::Expr &expr, std::string_view filename,
+               std::string prefix, std::string_view label, bool isLeft) {
   startPrint(prefix, label, isLeft);
 
   const auto visitor = overloads{
-      [&](const Number &e) {
+      [&](const Ast::Number &e) {
         printHeader(219, "Number " + std::to_string(e.value), filename, e.span);
       },
-      [&](const Boolean &e) {
+      [&](const Ast::Boolean &e) {
         printHeader(39, "Boolean " + std::to_string(e.value), filename, e.span);
       },
-      [&](const Ident &e) {
+      [&](const Ast::Ident &e) {
         printHeader(181, std::format("Ident {}", e.name), filename, e.span);
       },
-      [&](const Binary &e) {
+      [&](const Ast::Binary &e) {
         printHeader(111, std::format("Binary {}", operatorName(e.op)), filename,
                     e.span);
 
@@ -72,7 +73,7 @@ void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
         printExpr(*e.right, filename, prefix + (isLeft ? "│   " : "    "), "",
                   false);
       },
-      [&](const Call &e) {
+      [&](const Ast::Call &e) {
         printHeader(111, std::format("Call {}", e.function), filename, e.span);
 
         for (size_t i = 0; i < e.arguments.size(); i++) {
@@ -82,7 +83,7 @@ void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
                     e.arguments.size() == 1 ? false : i == 0);
         }
       },
-      [&](const Grouping &e) {
+      [&](const Ast::Grouping &e) {
         printHeader(36, "Grouping", filename, e.span);
 
         printExpr(*e.inner, filename, prefix + (isLeft ? "│   " : "    "), "",
@@ -93,16 +94,16 @@ void printExpr(const Expr &expr, std::string_view filename, std::string prefix,
   std::visit(visitor, expr);
 }
 
-void printStmt(const Stmt &stmt, std::string_view filename) {
+void printStmt(const Ast::Stmt &stmt, std::string_view filename) {
   printStmt(stmt, filename, "", "", false);
 }
 
-void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
-               std::string_view label, bool isLeft) {
+void printStmt(const Ast::Stmt &stmt, std::string_view filename,
+               std::string prefix, std::string_view label, bool isLeft) {
   startPrint(prefix, label, isLeft);
 
   const auto visitor = overloads{
-      [&](const Block &s) {
+      [&](const Ast::Block &s) {
         printHeader(219, "Block", filename, s.span);
 
         for (size_t i = 0; i < s.statements.size(); i++) {
@@ -111,8 +112,8 @@ void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
                     s.statements.size() == 1 ? false : i == 0);
         }
       },
-      [&](const Let &s) { printHeader(39, "Let", filename, s.span); },
-      [&](const If &s) {
+      [&](const Ast::Let &s) { printHeader(39, "Let", filename, s.span); },
+      [&](const Ast::If &s) {
         printHeader(181, "If", filename, s.span);
 
         printExpr(s.cond, filename, prefix + (isLeft ? "│   " : "    "), "cond",
@@ -125,7 +126,7 @@ void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
                     prefix + (isLeft ? "│   " : "    "), "else", false);
         }
       },
-      [&](const Return &s) {
+      [&](const Ast::Return &s) {
         printHeader(111, "Return", filename, s.span);
 
         if (s.value.has_value()) {
@@ -133,7 +134,7 @@ void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
                     prefix + (isLeft ? "│   " : "    "), "", false);
         }
       },
-      [&](const ExprStmt &s) {
+      [&](const Ast::ExprStmt &s) {
         printHeader(36, "Expr Stmt", filename, s.span);
 
         printExpr(s.expression, filename, prefix + (isLeft ? "│   " : "    "),
@@ -144,16 +145,16 @@ void printStmt(const Stmt &stmt, std::string_view filename, std::string prefix,
   std::visit(visitor, stmt);
 }
 
-void printDecl(const Decl &decl, std::string_view filename) {
+void printDecl(const Ast::Decl &decl, std::string_view filename) {
   printDecl(decl, filename, "", "", false);
 }
 
-void printDecl(const Decl &decl, std::string_view filename, std::string prefix,
-               std::string_view label, bool isLeft) {
+void printDecl(const Ast::Decl &decl, std::string_view filename,
+               std::string prefix, std::string_view label, bool isLeft) {
   startPrint(prefix, label, isLeft);
 
   const auto visitor = overloads{
-      [&](const Function &d) {
+      [&](const Ast::Function &d) {
         std::string header{std::format("Function {}", d.name)};
 
         header += "(";
@@ -179,11 +180,11 @@ void printDecl(const Decl &decl, std::string_view filename, std::string prefix,
   std::visit(visitor, decl);
 }
 
-void printBlock(const Block &block, std::string_view filename) {
+void printBlock(const Ast::Block &block, std::string_view filename) {
   printBlock(block, filename, "", "", false);
 }
 
-void printBlock(const Block &block, std::string_view filename,
+void printBlock(const Ast::Block &block, std::string_view filename,
                 std::string prefix, std::string_view label, bool isLeft) {
   startPrint(prefix, label, isLeft);
 
@@ -196,27 +197,27 @@ void printBlock(const Block &block, std::string_view filename,
   }
 }
 
-const char *operatorName(const Operator &op) {
+const char *operatorName(const Ast::Operator &op) {
   switch (op) {
-  case Operator::Add:
+  case Ast::Operator::Add:
     return "Add";
-  case Operator::Sub:
+  case Ast::Operator::Sub:
     return "Sub";
-  case Operator::Mul:
+  case Ast::Operator::Mul:
     return "Mul";
-  case Operator::Div:
+  case Ast::Operator::Div:
     return "Div";
-  case Operator::Eq:
+  case Ast::Operator::Eq:
     return "Eq";
-  case Operator::NotEq:
+  case Ast::Operator::NotEq:
     return "NotEq";
-  case Operator::Lt:
+  case Ast::Operator::Lt:
     return "Lt";
-  case Operator::LtEq:
+  case Ast::Operator::LtEq:
     return "LtEq";
-  case Operator::Gt:
+  case Ast::Operator::Gt:
     return "Gt";
-  case Operator::GtEq:
+  case Ast::Operator::GtEq:
     return "GtEq";
   }
 }

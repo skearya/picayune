@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "parser.h"
+#include "printer.h"
 #include "tokenizer.h"
 #include <string_view>
 
@@ -21,9 +22,19 @@ int main(int, char **) {
         return n * factorial(n - 1);
       }
     }
+
+    function factorial(n: u32): void {
+      if (n == 0) {
+        return 1;
+      } else {
+        return n * factorial(n - 1);
+      }
+    }
   )";
 
-  Decl root = Parser{Tokenizer{std::string_view{source}}}.declaration();
+  auto root = Parser{Tokenizer{std::string_view{source}}}.program();
 
-  printDecl(root, std::string_view{"main.cpp"});
+  for (auto &decl : root) {
+    printDecl(decl, std::string_view{"main.cpp"});
+  }
 }

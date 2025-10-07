@@ -1,27 +1,28 @@
 #pragma once
 
+#include "ast.h"
 #include "span.h"
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
-namespace Ast {
+namespace TAst {
 
-enum struct Operator {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Eq,
-  NotEq,
-  Lt,
-  LtEq,
-  Gt,
-  GtEq,
-};
+struct TInt;
+struct TBoolean;
+struct TVoid;
+
+using Type = std::variant<TInt, TBoolean, TVoid>;
+
+struct TInt {};
+
+struct TBoolean {};
+
+struct TVoid {};
 
 struct Number;
 struct Boolean;
@@ -43,24 +44,28 @@ struct Boolean {
 };
 
 struct Ident {
+  Type type;
   Span span;
   std::string_view name;
 };
 
 struct Binary {
+  Type type;
   Span span;
   std::unique_ptr<Expr> left;
-  Operator op;
+  Ast::Operator op;
   std::unique_ptr<Expr> right;
 };
 
 struct Call {
+  Type type;
   Span span;
   std::string_view function;
   std::vector<Expr> arguments;
 };
 
 struct Grouping {
+  Type type;
   Span span;
   std::unique_ptr<Expr> inner;
 };
@@ -118,4 +123,20 @@ struct Function {
   Block body;
 };
 
-} // namespace Ast
+template <typename T> Type getType(const T &arg) {
+  return std::visit(
+      [](const auto &node) -> Type {
+        using t = std::decay_t<decltype(node)>;
+
+        if constexpr (std::is_same_v<t, Number>) {
+          return TInt{};
+        } else if constexpr (std::is_same_v<t, Boolean>) {
+          return TBoolean{};
+        } else {
+          return TVoid{};
+        }
+      },
+      arg);
+}
+
+} // namespace TAst
