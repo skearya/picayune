@@ -111,15 +111,15 @@ struct Function;
 using Decl = std::variant<Function>;
 
 struct Parameter {
+  Type type;
   std::string_view name;
-  std::string_view type;
 };
 
 struct Function {
   Span span;
+  Type type;
   std::string_view name;
   std::vector<Parameter> params;
-  std::string_view returnType;
   Block body;
 };
 
