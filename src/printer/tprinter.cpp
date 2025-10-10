@@ -51,8 +51,9 @@ void printExpr(const TAst::Expr &expr, std::string_view filename,
                             TAst::TInt{}, filename, e.span);
       },
       [&](const TAst::Boolean &e) {
-        printHeaderWithType(39, "Boolean " + std::to_string(e.value),
-                            TAst::TBoolean{}, filename, e.span);
+        printHeaderWithType(
+            39, std::format("Boolean {}", e.value ? "true" : "false"),
+            TAst::TBoolean{}, filename, e.span);
       },
       [&](const TAst::Ident &e) {
         printHeaderWithType(181, std::format("Ident {}", e.name), e.type,
@@ -99,7 +100,7 @@ void printStmt(const TAst::Stmt &stmt, std::string_view filename,
 
         for (size_t i = 0; i < s.statements.size(); i++) {
           printStmt(s.statements.at(i), filename, next, "",
-                    s.statements.size() == 1 ? false : i == 0);
+                    i != s.statements.size() - 1);
         }
       },
       [&](const TAst::Let &s) {
@@ -182,7 +183,7 @@ void printBlock(const TAst::Block &block, std::string_view filename,
 
   for (size_t i = 0; i < block.statements.size(); i++) {
     printStmt(block.statements.at(i), filename, next, "",
-              block.statements.size() == 1 ? false : i == 0);
+              i != block.statements.size() - 1);
   }
 }
 

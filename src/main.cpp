@@ -3,6 +3,7 @@
 #include "printer/tprinter.h"
 #include "tokenizer.h"
 #include "typechecker.h"
+#include <print>
 #include <string_view>
 
 int main(int, char **) {
@@ -19,6 +20,12 @@ int main(int, char **) {
     function main(): void {
       let one = 1 + 1;
       let two = one + 1;
+
+      if (two == 3) {
+        return true;
+      } else {
+        return false;
+      }
     }
   )";
 
@@ -28,6 +35,8 @@ int main(int, char **) {
   for (auto &d : root) {
     Printer::printDecl(d, "main.cpp");
   }
+
+  std::println();
 
   std::vector<TAst::Decl> troot = TypeChecker{}.check(root);
 

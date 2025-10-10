@@ -25,7 +25,8 @@ void printExpr(const Ast::Expr &expr, std::string_view filename,
         printHeader(219, "Number " + std::to_string(e.value), filename, e.span);
       },
       [&](const Ast::Boolean &e) {
-        printHeader(39, "Boolean " + std::to_string(e.value), filename, e.span);
+        printHeader(39, std::format("Boolean {}", e.value ? "true" : "false"),
+                    filename, e.span);
       },
       [&](const Ast::Ident &e) {
         printHeader(181, std::format("Ident {}", e.name), filename, e.span);
@@ -70,7 +71,7 @@ void printStmt(const Ast::Stmt &stmt, std::string_view filename,
 
         for (size_t i = 0; i < s.statements.size(); i++) {
           printStmt(s.statements.at(i), filename, next, "",
-                    s.statements.size() == 1 ? false : i == 0);
+                    i != s.statements.size() - 1);
         }
       },
       [&](const Ast::Let &s) {
@@ -153,7 +154,7 @@ void printBlock(const Ast::Block &block, std::string_view filename,
 
   for (size_t i = 0; i < block.statements.size(); i++) {
     printStmt(block.statements.at(i), filename, next, "",
-              block.statements.size() == 1 ? false : i == 0);
+              i != block.statements.size() - 1);
   }
 }
 
