@@ -27,6 +27,10 @@ void startPrint(std::string_view prefix, std::string_view label, bool isLeft) {
   std::print("\033[39m");
 }
 
+std::string nextPrefix(std::string prefix, bool isLeft) {
+  return prefix + (isLeft ? "│   " : "    ");
+}
+
 void printHeader(uint8_t color, std::string_view label,
                  std::string_view filename, const Span &span) {
   std::print("\033[38:5:{}m", color);
@@ -46,13 +50,14 @@ void printHeader(uint8_t color, std::string_view label,
   std::println();
 }
 
-void printExpr(const Ast::Expr &expr, std::string_view filename) {
+void printExpr(const typename Ast::Expr &expr, std::string_view filename) {
   printExpr(expr, filename, "", "", false);
 }
 
 void printExpr(const Ast::Expr &expr, std::string_view filename,
                std::string prefix, std::string_view label, bool isLeft) {
   startPrint(prefix, label, isLeft);
+  std::string next = nextPrefix(prefix, isLeft);
 
   const auto visitor = overloads{
       [&](const Ast::Number &e) {
@@ -68,26 +73,21 @@ void printExpr(const Ast::Expr &expr, std::string_view filename,
         printHeader(111, std::format("Binary {}", operatorName(e.op)), filename,
                     e.span);
 
-        printExpr(*e.left, filename, prefix + (isLeft ? "│   " : "    "), "",
-                  true);
-        printExpr(*e.right, filename, prefix + (isLeft ? "│   " : "    "), "",
-                  false);
+        printExpr(*e.left, filename, next, "", true);
+        printExpr(*e.right, filename, next, "", false);
       },
       [&](const Ast::Call &e) {
         printHeader(111, std::format("Call {}", e.function), filename, e.span);
 
         for (size_t i = 0; i < e.arguments.size(); i++) {
-          printExpr(e.arguments.at(i), filename,
-                    prefix + (isLeft ? "│   " : "    "),
-                    std::format("arg {}", i),
+          printExpr(e.arguments.at(i), filename, next, std::format("arg {}", i),
                     e.arguments.size() == 1 ? false : i == 0);
         }
       },
       [&](const Ast::Grouping &e) {
         printHeader(36, "Grouping", filename, e.span);
 
-        printExpr(*e.inner, filename, prefix + (isLeft ? "│   " : "    "), "",
-                  false);
+        printExpr(*e.inner, filename, next, "", false);
       },
   };
 
@@ -101,14 +101,14 @@ void printStmt(const Ast::Stmt &stmt, std::string_view filename) {
 void printStmt(const Ast::Stmt &stmt, std::string_view filename,
                std::string prefix, std::string_view label, bool isLeft) {
   startPrint(prefix, label, isLeft);
+  std::string next = nextPrefix(prefix, isLeft);
 
   const auto visitor = overloads{
       [&](const Ast::Block &s) {
         printHeader(219, "Block", filename, s.span);
 
         for (size_t i = 0; i < s.statements.size(); i++) {
-          printStmt(s.statements.at(i), filename,
-                    prefix + (isLeft ? "│   " : "    "), "",
+          printStmt(s.statements.at(i), filename, next, "",
                     s.statements.size() == 1 ? false : i == 0);
         }
       },
@@ -116,29 +116,24 @@ void printStmt(const Ast::Stmt &stmt, std::string_view filename,
       [&](const Ast::If &s) {
         printHeader(181, "If", filename, s.span);
 
-        printExpr(s.cond, filename, prefix + (isLeft ? "│   " : "    "), "cond",
-                  true);
-        printStmt(*s.thenStatement, filename,
-                  prefix + (isLeft ? "│   " : "    "), "then",
+        printExpr(s.cond, filename, next, "cond", true);
+        printStmt(*s.thenStatement, filename, next, "then",
                   s.elseStatement.has_value());
         if (s.elseStatement.has_value()) {
-          printStmt(*s.elseStatement->get(), filename,
-                    prefix + (isLeft ? "│   " : "    "), "else", false);
+          printStmt(*s.elseStatement->get(), filename, next, "else", false);
         }
       },
       [&](const Ast::Return &s) {
         printHeader(111, "Return", filename, s.span);
 
         if (s.value.has_value()) {
-          printExpr(s.value.value(), filename,
-                    prefix + (isLeft ? "│   " : "    "), "", false);
+          printExpr(s.value.value(), filename, next, "", false);
         }
       },
       [&](const Ast::ExprStmt &s) {
         printHeader(36, "Expr Stmt", filename, s.span);
 
-        printExpr(s.expression, filename, prefix + (isLeft ? "│   " : "    "),
-                  "", false);
+        printExpr(s.expression, filename, next, "", false);
       },
   };
 
@@ -152,6 +147,7 @@ void printDecl(const Ast::Decl &decl, std::string_view filename) {
 void printDecl(const Ast::Decl &decl, std::string_view filename,
                std::string prefix, std::string_view label, bool isLeft) {
   startPrint(prefix, label, isLeft);
+  std::string next = nextPrefix(prefix, isLeft);
 
   const auto visitor = overloads{
       [&](const Ast::Function &d) {
@@ -172,8 +168,7 @@ void printDecl(const Ast::Decl &decl, std::string_view filename,
         header += d.returnType;
 
         printHeader(219, header, filename, d.span);
-        printBlock(d.body, filename, prefix + (isLeft ? "│   " : "    "), "",
-                   false);
+        printBlock(d.body, filename, next, "", false);
       },
   };
 
@@ -187,12 +182,12 @@ void printBlock(const Ast::Block &block, std::string_view filename) {
 void printBlock(const Ast::Block &block, std::string_view filename,
                 std::string prefix, std::string_view label, bool isLeft) {
   startPrint(prefix, label, isLeft);
+  std::string next = nextPrefix(prefix, isLeft);
 
   printHeader(219, "Block", filename, block.span);
 
   for (size_t i = 0; i < block.statements.size(); i++) {
-    printStmt(block.statements.at(i), filename,
-              prefix + (isLeft ? "│   " : "    "), "",
+    printStmt(block.statements.at(i), filename, next, "",
               block.statements.size() == 1 ? false : i == 0);
   }
 }
