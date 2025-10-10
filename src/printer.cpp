@@ -50,7 +50,7 @@ void printHeader(uint8_t color, std::string_view label,
   std::println();
 }
 
-void printExpr(const typename Ast::Expr &expr, std::string_view filename) {
+void printExpr(const Ast::Expr &expr, std::string_view filename) {
   printExpr(expr, filename, "", "", false);
 }
 
