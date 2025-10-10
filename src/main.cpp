@@ -1,4 +1,6 @@
 #include "parser.h"
+#include "printer/printer.h"
+#include "printer/tprinter.h"
 #include "tokenizer.h"
 #include "typechecker.h"
 #include <string_view>
@@ -23,5 +25,13 @@ int main(int, char **) {
   std::vector<Ast::Decl> root =
       Parser{Tokenizer{std::string_view{source}}}.program();
 
+  for (auto &d : root) {
+    Printer::printDecl(d, "main.cpp");
+  }
+
   std::vector<TAst::Decl> troot = TypeChecker{}.check(root);
+
+  for (auto &d : troot) {
+    TPrinter::printDecl(d, "main.cpp");
+  }
 }

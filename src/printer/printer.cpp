@@ -1,54 +1,15 @@
 #include "printer.h"
-#include "ast.h"
-#include "span.h"
-#include "utils.h"
+#include "../ast.h"
+#include "../utils.h"
+#include "shared.h"
 #include <cstddef>
 #include <cstdint>
 #include <format>
 #include <memory>
-#include <print>
 #include <string>
 #include <string_view>
 
-void startPrint(std::string_view prefix, std::string_view label, bool isLeft) {
-  std::print("\033[90m");
-
-  if (prefix.empty()) {
-    std::print("> ");
-  } else {
-    std::print("{}", prefix);
-    std::print("{}", isLeft ? "├───" : "╰───");
-
-    if (!label.empty()) {
-      std::print("{}: ", label);
-    }
-  }
-
-  std::print("\033[39m");
-}
-
-std::string nextPrefix(std::string prefix, bool isLeft) {
-  return prefix + (isLeft ? "│   " : "    ");
-}
-
-void printHeader(uint8_t color, std::string_view label,
-                 std::string_view filename, const Span &span) {
-  std::print("\033[38:5:{}m", color);
-  std::print("{}", label);
-  std::print("\033[39m");
-
-  std::print("\033[90m");
-  std::print(" - ");
-  std::print("\033[39m");
-
-  std::print("\033[38:5:6m");
-  std::print("\033[3m");
-  std::print("[{}:{}:{}]", filename, span.line, span.start + 1);
-  std::print("\033[23m");
-  std::print("\033[39m");
-
-  std::println();
-}
+namespace Printer {
 
 void printExpr(const Ast::Expr &expr, std::string_view filename) {
   printExpr(expr, filename, "", "", false);
@@ -112,7 +73,11 @@ void printStmt(const Ast::Stmt &stmt, std::string_view filename,
                     s.statements.size() == 1 ? false : i == 0);
         }
       },
-      [&](const Ast::Let &s) { printHeader(39, "Let", filename, s.span); },
+      [&](const Ast::Let &s) {
+        printHeader(39, std::format("Let {}", s.name), filename, s.span);
+
+        printExpr(s.initializer, filename, next, "", false);
+      },
       [&](const Ast::If &s) {
         printHeader(181, "If", filename, s.span);
 
@@ -165,7 +130,7 @@ void printDecl(const Ast::Decl &decl, std::string_view filename,
         }
 
         header += "): ";
-        header += d.returnType;
+        header += d.type;
 
         printHeader(219, header, filename, d.span);
         printBlock(d.body, filename, next, "", false);
@@ -192,27 +157,4 @@ void printBlock(const Ast::Block &block, std::string_view filename,
   }
 }
 
-const char *operatorName(const Ast::Operator &op) {
-  switch (op) {
-  case Ast::Operator::Add:
-    return "Add";
-  case Ast::Operator::Sub:
-    return "Sub";
-  case Ast::Operator::Mul:
-    return "Mul";
-  case Ast::Operator::Div:
-    return "Div";
-  case Ast::Operator::Eq:
-    return "Eq";
-  case Ast::Operator::NotEq:
-    return "NotEq";
-  case Ast::Operator::Lt:
-    return "Lt";
-  case Ast::Operator::LtEq:
-    return "LtEq";
-  case Ast::Operator::Gt:
-    return "Gt";
-  case Ast::Operator::GtEq:
-    return "GtEq";
-  }
-}
+} // namespace Printer

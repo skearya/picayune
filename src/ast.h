@@ -114,7 +114,7 @@ struct Function {
   Span span;
   std::string_view name;
   std::vector<Parameter> params;
-  std::string_view returnType;
+  std::string_view type;
   Block body;
 };
 
