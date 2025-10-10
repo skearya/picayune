@@ -133,7 +133,7 @@ template <typename T> Type getType(const T &arg) {
         } else if constexpr (std::is_same_v<t, Boolean>) {
           return TBoolean{};
         } else {
-          return TVoid{};
+          return node.type;
         }
       },
       arg);

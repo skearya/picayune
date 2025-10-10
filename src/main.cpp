@@ -1,7 +1,6 @@
-#include "ast.h"
 #include "parser.h"
-#include "printer.h"
 #include "tokenizer.h"
+#include "typechecker.h"
 #include <string_view>
 
 int main(int, char **) {
@@ -15,26 +14,14 @@ int main(int, char **) {
   // auto content = buffer.str();
 
   auto source = R"(
-    function factorial(n: u32): void {
-      if (n == 0) {
-        return 1;
-      } else {
-        return n * factorial(n - 1);
-      }
-    }
-
-    function factorial(n: u32): void {
-      if (n == 0) {
-        return 1;
-      } else {
-        return n * factorial(n - 1);
-      }
+    function main(): void {
+      let one = 1 + 1;
+      let two = one + 1;
     }
   )";
 
-  auto root = Parser{Tokenizer{std::string_view{source}}}.program();
+  std::vector<Ast::Decl> root =
+      Parser{Tokenizer{std::string_view{source}}}.program();
 
-  for (auto &decl : root) {
-    printDecl(decl, std::string_view{"main.cpp"});
-  }
+  std::vector<TAst::Decl> troot = TypeChecker{}.check(root);
 }
