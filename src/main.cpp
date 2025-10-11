@@ -1,6 +1,5 @@
+#include "extra/printer.h"
 #include "parser.h"
-#include "printer/printer.h"
-#include "printer/tprinter.h"
 #include "tokenizer.h"
 #include "typechecker.h"
 #include <print>
@@ -32,15 +31,11 @@ int main(int, char **) {
   std::vector<Ast::Decl> root =
       Parser{Tokenizer{std::string_view{source}}}.program();
 
-  for (auto &d : root) {
-    Printer::printDecl(d, "main.cpp");
-  }
+  Printer::printProgram(root, "main.cpp");
 
   std::println();
 
   std::vector<TAst::Decl> troot = TypeChecker{}.check(root);
 
-  for (auto &d : troot) {
-    TPrinter::printDecl(d, "main.cpp");
-  }
+  Printer::printProgram(troot, "main.cpp");
 }

@@ -1,5 +1,15 @@
-#include "../ast.h"
+#include "printer.h"
+#include "../tast.h"
+#include "../utils.h"
+#include <cstddef>
+#include <cstdint>
+#include <format>
+#include <optional>
 #include <print>
+#include <string_view>
+#include <variant>
+
+namespace Printer {
 
 void startPrint(std::string_view prefix, std::string_view label, bool isLeft) {
   std::print("\033[90m");
@@ -18,19 +28,26 @@ void startPrint(std::string_view prefix, std::string_view label, bool isLeft) {
   std::print("\033[39m");
 }
 
-std::string nextPrefix(std::string prefix, bool isLeft) {
-  return prefix + (isLeft ? "│   " : "    ");
-}
-
 void printHeader(uint8_t color, std::string_view label,
-                 std::string_view filename, const Span &span) {
+                 std::optional<TAst::Type> type, std::string_view filename,
+                 const Span &span) {
   std::print("\033[38:5:{}m", color);
-  std::print("{}", label);
+  std::print("{} ", label);
   std::print("\033[39m");
 
-  std::print("\033[90m");
-  std::print(" - ");
-  std::print("\033[39m");
+  if (type.has_value()) {
+    std::print("\033[90m");
+    std::print(": ");
+    std::print("\033[39m");
+
+    std::print("\033[38:5:6m");
+    std::print("{} - ", typeName(type.value()));
+    std::print("\033[39m");
+  } else {
+    std::print("\033[90m");
+    std::print("- ");
+    std::print("\033[39m");
+  }
 
   std::print("\033[90m");
   std::print("\033[3m");
@@ -39,6 +56,10 @@ void printHeader(uint8_t color, std::string_view label,
   std::print("\033[39m");
 
   std::println();
+}
+
+std::string nextPrefix(std::string prefix, bool isLeft) {
+  return prefix + (isLeft ? "│   " : "    ");
 }
 
 const char *operatorName(const Ast::Operator &op) {
@@ -65,3 +86,12 @@ const char *operatorName(const Ast::Operator &op) {
     return "GtEq";
   }
 }
+
+const char *typeName(const TAst::Type &type) {
+  return std::visit(overloads{[](const TAst::TInt &) { return "Int"; },
+                              [](const TAst::TBoolean &) { return "Boolean"; },
+                              [](const TAst::TVoid &) { return "Void"; }},
+                    type);
+}
+
+} // namespace Printer
