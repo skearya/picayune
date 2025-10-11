@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "tast.h"
 #include "utils.h"
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -13,19 +14,45 @@
 
 std::vector<TAst::Decl>
 TypeChecker::check(const std::vector<Ast::Decl> &program) {
-  std::vector<PartialDecl> partialTypedDecls{};
+  for (const auto &decl : program) {
+    PartialDecl partialDecl = std::visit(
+        overloads{[](const Ast::Function &function) {
+          std::vector<TAst::Parameter> typedParams{};
 
-  for (auto &decl : program) {
-    partialTypedDecls.push_back(std::visit(*this, decl));
+          for (auto &param : function.params) {
+            typedParams.push_back(
+                TAst::Parameter{identToType(param.type), param.name});
+          }
+
+          return PartialFunction{function.span, identToType(function.type),
+                                 function.name, std::move(typedParams),
+                                 function.body};
+        }},
+        decl);
+
+    partialDeclarations.push_back(partialDecl);
   }
 
-  std::vector<TAst::Decl> typedDecls{};
+  std::vector<TAst::Decl> typedDecls;
 
-  for (auto &decl : partialTypedDecls) {
+  for (const auto &decl : partialDeclarations) {
     TAst::Decl typedDecl =
         std::visit(overloads{[this](const PartialFunction &node) {
+                     currentFunction = &node;
+
+                     environments.push_back(
+                         std::unordered_map<std::string_view, TAst::Type>{});
+
+                     for (const auto &param : node.params) {
+                       environments.back()[param.name] = param.type;
+                     }
+
+                     auto block = checkBlock(node.body);
+
+                     environments.pop_back();
+
                      return TAst::Function{node.span, node.type, node.name,
-                                           node.params, checkBlock(node.body)};
+                                           node.params, std::move(block)};
                    }},
                    decl);
 
@@ -33,17 +60,6 @@ TypeChecker::check(const std::vector<Ast::Decl> &program) {
   }
 
   return typedDecls;
-}
-
-PartialDecl TypeChecker::operator()(const Ast::Function &function) {
-  std::vector<TAst::Parameter> typedParams{};
-
-  for (auto &param : function.params) {
-    typedParams.push_back(TAst::Parameter{identToType(param.type), param.name});
-  }
-
-  return PartialFunction{function.span, TAst::TVoid{}, function.name,
-                         std::move(typedParams), function.body};
 }
 
 TAst::Expr TypeChecker::checkExpr(const Ast::Expr &node) {
@@ -116,8 +132,34 @@ TAst::Expr TypeChecker::operator()(const Ast::Binary &node) {
                       std::make_unique<TAst::Expr>(std::move(right))};
 }
 
-TAst::Expr TypeChecker::operator()(const Ast::Call &_) {
-  throw std::runtime_error("TODO: Call");
+TAst::Expr TypeChecker::operator()(const Ast::Call &node) {
+  auto function = lookupFunction(node.function);
+
+  if (!function.has_value()) {
+    throw std::runtime_error("Tried to call undefined function");
+  }
+
+  const auto &params = function.value()->params;
+
+  if (node.arguments.size() != params.size()) {
+    throw std::runtime_error("Function call arity mismatch");
+  }
+
+  std::vector<TAst::Expr> arguments;
+
+  for (size_t i = 0; i < params.size(); i++) {
+    auto arg = checkExpr(node.arguments.at(i));
+    auto argtype = TAst::getType(arg);
+
+    if (argtype.index() != params.at(i).type.index()) {
+      throw std::runtime_error("Function call argument type mismatch");
+    }
+
+    arguments.push_back(std::move(arg));
+  }
+
+  return TAst::Call{function.value()->type, node.span, node.function,
+                    std::move(arguments)};
 }
 
 TAst::Expr TypeChecker::operator()(const Ast::Grouping &node) {
@@ -165,9 +207,25 @@ TAst::Stmt TypeChecker::operator()(const Ast::If &node) {
 }
 
 TAst::Stmt TypeChecker::operator()(const Ast::Return &node) {
-  return TAst::Return{node.span, node.value.transform([this](auto &expr) {
-                        return checkExpr(expr);
-                      })};
+  auto value =
+      node.value.transform([this](auto &expr) { return checkExpr(expr); });
+
+  auto returntype = currentFunction->type;
+
+  if (value.has_value()) {
+    auto valuetype = TAst::getType(value.value());
+
+    if (valuetype.index() != returntype.index()) {
+      throw std::runtime_error(
+          "Expected return type to match function return type");
+    }
+  } else {
+    if (!std::holds_alternative<TAst::TVoid>(returntype)) {
+      throw std::runtime_error("Expected return value to exist");
+    }
+  }
+
+  return TAst::Return{node.span, std::move(value)};
 }
 
 TAst::Stmt TypeChecker::operator()(const Ast::ExprStmt &node) {
@@ -192,6 +250,19 @@ std::optional<TAst::Type> TypeChecker::lookup(std::string_view name) {
   for (auto env = environments.rbegin(); env != environments.rend(); env++) {
     if (env->contains(name)) {
       return env->at(name);
+    }
+  }
+
+  return std::nullopt;
+}
+
+std::optional<const PartialFunction *>
+TypeChecker::lookupFunction(std::string_view name) {
+  for (const auto &decl : partialDeclarations) {
+    if (const auto *function = std::get_if<PartialFunction>(&decl)) {
+      if (function->name == name) {
+        return std::optional{function};
+      }
     }
   }
 

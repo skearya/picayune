@@ -2,6 +2,7 @@
 
 #include "ast.h"
 #include "tast.h"
+#include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -21,10 +22,9 @@ struct PartialFunction {
 struct TypeChecker {
   std::vector<PartialDecl> partialDeclarations;
   std::vector<std::unordered_map<std::string_view, TAst::Type>> environments;
+  const PartialFunction *currentFunction;
 
   std::vector<TAst::Decl> check(const std::vector<Ast::Decl> &program);
-
-  PartialDecl operator()(const Ast::Function &d);
 
   TAst::Expr checkExpr(const Ast::Expr &node);
 
@@ -46,6 +46,7 @@ struct TypeChecker {
   TAst::Block checkBlock(const Ast::Block &node);
 
   std::optional<TAst::Type> lookup(std::string_view name);
+  std::optional<const PartialFunction *> lookupFunction(std::string_view name);
 };
 
 TAst::Type identToType(std::string_view ident);

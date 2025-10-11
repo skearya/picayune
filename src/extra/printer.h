@@ -4,8 +4,10 @@
 #include <cstddef>
 #include <format>
 #include <optional>
+#include <print>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 namespace Printer {
 
@@ -240,6 +242,12 @@ void printBlock(const T &block, std::string_view filename) {
 
 template <typename T>
 void printProgram(const T &prog, std::string_view filename) {
+  if constexpr (std::is_same_v<T, std::vector<Ast::Decl>>) {
+    std::println("> Parsed AST");
+  } else {
+    std::println("> Typed AST");
+  }
+
   for (const auto &node : prog) {
     printDecl(node, filename);
   }

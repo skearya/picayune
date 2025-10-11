@@ -41,13 +41,13 @@ void printHeader(uint8_t color, std::string_view label,
     std::print("\033[39m");
 
     std::print("\033[38:5:6m");
-    std::print("{} - ", typeName(type.value()));
-    std::print("\033[39m");
-  } else {
-    std::print("\033[90m");
-    std::print("- ");
+    std::print("{} ", typeName(type.value()));
     std::print("\033[39m");
   }
+
+  std::print("\033[90m");
+  std::print("- ");
+  std::print("\033[39m");
 
   std::print("\033[90m");
   std::print("\033[3m");
