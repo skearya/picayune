@@ -139,6 +139,7 @@ TAst::Expr TypeChecker::operator()(const Ast::Call &node) {
     throw std::runtime_error("Tried to call undefined function");
   }
 
+  const auto &functiontype = function.value()->type;
   const auto &params = function.value()->params;
 
   if (node.arguments.size() != params.size()) {
@@ -158,7 +159,7 @@ TAst::Expr TypeChecker::operator()(const Ast::Call &node) {
     arguments.push_back(std::move(arg));
   }
 
-  return TAst::Call{function.value()->type, node.span, node.function,
+  return TAst::Call{functiontype, node.span, node.function,
                     std::move(arguments)};
 }
 
