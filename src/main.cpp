@@ -1,6 +1,6 @@
+#include "codegen.h"
 #include "extra/printer.h"
 #include "parser.h"
-#include "token.h"
 #include "tokenizer.h"
 #include "typechecker.h"
 #include <fstream>
@@ -28,4 +28,6 @@ int main(int, char **) {
   std::vector<TAst::Decl> troot = TypeChecker{}.check(root);
 
   Printer::printProgram(troot, "example.lang");
+
+  LLVMCodegen{}.codegen(troot);
 }

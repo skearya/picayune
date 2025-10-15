@@ -68,7 +68,7 @@ parameters: param (COMMA param)*
 
 */
 
-Parser::Parser(Tokenizer t) : tokenizer(t), current(tokenizer.token()) {}
+Parser::Parser(Tokenizer t) : tokenizer{t}, current{tokenizer.token()} {}
 
 Token Parser::peek() { return current; }
 

@@ -126,11 +126,11 @@ struct Function {
 template <typename T> Type getType(const T &arg) {
   return std::visit(
       [](const auto &node) -> Type {
-        using t = std::decay_t<decltype(node)>;
+        using K = std::decay_t<decltype(node)>;
 
-        if constexpr (std::is_same_v<t, Number>) {
+        if constexpr (std::is_same_v<K, Number>) {
           return TInt{};
-        } else if constexpr (std::is_same_v<t, Boolean>) {
+        } else if constexpr (std::is_same_v<K, Boolean>) {
           return TBoolean{};
         } else {
           return node.type;

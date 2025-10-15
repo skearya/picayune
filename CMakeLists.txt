@@ -11,11 +11,11 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
-add_executable(${PROJECT_NAME} src/main.cpp src/parser.cpp src/span.cpp src/tokenizer.cpp src/typechecker.cpp src/extra/printer.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp src/parser.cpp src/span.cpp src/tokenizer.cpp src/typechecker.cpp src/codegen.cpp src/extra/printer.cpp)
 
 llvm_map_components_to_libnames(llvm_libs support core irreader)
 

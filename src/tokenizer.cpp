@@ -7,7 +7,7 @@
 #include <string_view>
 
 Tokenizer::Tokenizer(std::string_view src)
-    : src(src), line(1), start(0), current(0) {}
+    : src{src}, line{1}, start{0}, current{0} {}
 
 void Tokenizer::skipWhitespace() {
   while (true) {
