@@ -95,6 +95,20 @@ Token Tokenizer::token() {
       kind = TokenKind::Gt;
     }
     break;
+  case '&':
+    if (match('&')) {
+      kind = TokenKind::AndAnd;
+    } else {
+      kind = TokenKind::And;
+    }
+    break;
+  case '|':
+    if (match('|')) {
+      kind = TokenKind::OrOr;
+    } else {
+      kind = TokenKind::Or;
+    }
+    break;
   case ':':
     kind = TokenKind::Colon;
     break;

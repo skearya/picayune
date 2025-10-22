@@ -10,6 +10,8 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/IR/Verifier.h"
+#include <llvm/ADT/StringRef.h>
+#include <llvm/IR/Instructions.h>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -19,7 +21,7 @@ struct LLVMCodegen {
   llvm::Module module;
   llvm::IRBuilder<> builder;
   std::unordered_map<std::string_view, llvm::Function *> functions;
-  std::unordered_map<std::string_view, llvm::Value *> values;
+  std::unordered_map<std::string_view, llvm::AllocaInst *> values;
 
   LLVMCodegen();
 
@@ -45,4 +47,8 @@ struct LLVMCodegen {
   void codegenBlock(const TAst::Block &node);
 
   llvm::Type *convertType(const TAst::Type &type);
+
+  llvm::AllocaInst *createEntryBlockAlloca(llvm::Function *function,
+                                           llvm::Type *type,
+                                           llvm::StringRef name);
 };

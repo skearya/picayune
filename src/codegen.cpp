@@ -17,7 +17,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstddef>
-#include <stdexcept>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -55,16 +54,21 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
     std::visit(overloads{[this](const TAst::Function &node) {
                  auto function = functions[node.name];
 
-                 values.clear();
-
-                 for (auto &param : function->args()) {
-                   values[param.getName()] = &param;
-                 }
-
                  auto block =
                      llvm::BasicBlock::Create(context, "entry", function);
 
                  builder.SetInsertPoint(block);
+
+                 values.clear();
+
+                 for (auto &arg : function->args()) {
+                   auto alloca = createEntryBlockAlloca(function, arg.getType(),
+                                                        arg.getName());
+
+                   builder.CreateStore(&arg, alloca);
+
+                   values[arg.getName()] = alloca;
+                 }
 
                  codegenBlock(node.body);
 
@@ -90,7 +94,9 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Boolean &node) {
 }
 
 llvm::Value *LLVMCodegen::operator()(const TAst::Ident &node) {
-  return values[node.name];
+  auto alloca = values[node.name];
+
+  return builder.CreateLoad(alloca->getAllocatedType(), alloca, node.name);
 }
 
 llvm::Value *LLVMCodegen::operator()(const TAst::Binary &node) {
@@ -141,8 +147,13 @@ void LLVMCodegen::codegenStmt(const TAst::Stmt &node) {
 
 void LLVMCodegen::operator()(const TAst::Block &node) { codegenBlock(node); }
 
-void LLVMCodegen::operator()(const TAst::Let &) {
-  throw std::runtime_error("let");
+void LLVMCodegen::operator()(const TAst::Let &node) {
+  auto function = builder.GetInsertBlock()->getParent();
+  auto type = convertType(TAst::getType(node.initializer));
+
+  auto alloca = createEntryBlockAlloca(function, type, node.name);
+
+  builder.CreateStore(codegenExpr(node.initializer), alloca);
 }
 
 void LLVMCodegen::operator()(const TAst::If &node) {
@@ -212,3 +223,12 @@ llvm::Type *LLVMCodegen::convertType(const TAst::Type &type) {
                     },
                     type);
 }
+
+llvm::AllocaInst *LLVMCodegen::createEntryBlockAlloca(llvm::Function *function,
+                                                      llvm::Type *type,
+                                                      llvm::StringRef name) {
+  auto builder = llvm::IRBuilder<>{&function->getEntryBlock(),
+                                   function->getEntryBlock().begin()};
+
+  return builder.CreateAlloca(type, nullptr, name);
+};
