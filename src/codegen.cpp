@@ -17,6 +17,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstddef>
+#include <stdexcept>
 #include <string_view>
 #include <unordered_map>
 #include <variant>
@@ -102,6 +103,54 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Ident &node) {
 
 llvm::Value *LLVMCodegen::operator()(const TAst::Binary &node) {
   auto left = codegenExpr(*node.left);
+
+  if (node.op == Ast::Operator::Or || node.op == Ast::Operator::And) {
+    auto function = builder.GetInsertBlock()->getParent();
+
+    auto startBlock = llvm::BasicBlock::Create(context, "start", function);
+    auto elseBlock = llvm::BasicBlock::Create(context, "else", function);
+    auto mergeBlock = llvm::BasicBlock::Create(context, "merge", function);
+
+    builder.CreateBr(startBlock);
+
+    builder.SetInsertPoint(startBlock);
+
+    if (node.op == Ast::Operator::Or) {
+      // If left = true, OR is true, otherwise have to evaluate right.
+      builder.CreateCondBr(left, mergeBlock, elseBlock);
+    } else {
+      // If left = false, AND is true, otherwise have to evaluate right.
+      builder.CreateCondBr(left, elseBlock, mergeBlock);
+    }
+
+    builder.SetInsertPoint(elseBlock);
+    auto right = codegenExpr(*node.right);
+    builder.CreateBr(mergeBlock);
+
+    builder.SetInsertPoint(mergeBlock);
+    auto phi =
+        builder.CreatePHI(llvm::Type::getInt1Ty(context), 2,
+                          node.op == Ast::Operator::Or ? "ortmp" : "andtmp");
+
+    if (node.op == Ast::Operator::Or) {
+      // If we came from "start" (early exited), OR is true, otherwise the value
+      // of right.
+      phi->addIncoming(
+          llvm::ConstantInt::get(llvm::Type::getInt1Ty(context), true),
+          startBlock);
+      phi->addIncoming(right, elseBlock);
+    } else {
+      // If we came from "start" (early exited), AND is false, otherwise the
+      // value of right.
+      phi->addIncoming(
+          llvm::ConstantInt::get(llvm::Type::getInt1Ty(context), false),
+          startBlock);
+      phi->addIncoming(right, elseBlock);
+    }
+
+    return phi;
+  }
+
   auto right = codegenExpr(*node.right);
 
   switch (node.op) {
@@ -125,6 +174,9 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Binary &node) {
     return builder.CreateICmpSGT(left, right, "gttmp");
   case Ast::Operator::GtEq:
     return builder.CreateICmpSGE(left, right, "gteqtmp");
+  case Ast::Operator::Or:
+  case Ast::Operator::And:
+    throw std::runtime_error("Already handled above?");
   }
 }
 

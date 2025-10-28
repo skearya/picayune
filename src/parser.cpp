@@ -43,7 +43,9 @@ expression-statement: expression SEMI
 
 expression: assignment
 
-assignment = <l-value> EQUAL assignment | equality
+assignment = <l-value> EQUAL assignment | logical
+
+logical: equality | equality ((OROR | ANDAND) equality)*
 
 equality: comparison | comparison ((EQEQ | BANGEQ) comparison)*
 
@@ -92,7 +94,7 @@ Token Parser::expect(TokenKind kind, std::string_view error) {
 Ast::Expr Parser::expression() { return assignment(); };
 
 Ast::Expr Parser::assignment() {
-  Ast::Expr lhs = equality();
+  Ast::Expr lhs = logical();
 
   if (peek().kind == TokenKind::Eq) {
     advance();
@@ -107,6 +109,24 @@ Ast::Expr Parser::assignment() {
   } else {
     return lhs;
   }
+}
+
+Ast::Expr Parser::logical() {
+  Ast::Expr lhs = equality();
+
+  while (peek().kind == TokenKind::OrOr || peek().kind == TokenKind::AndAnd) {
+    const Token op = advance();
+    Ast::Expr rhs = equality();
+
+    lhs = Ast::Binary{
+        getSpan(lhs).extend(getSpan(rhs)),
+        std::make_unique<Ast::Expr>(std::move(lhs)),
+        tokenToOperator(op.kind),
+        std::make_unique<Ast::Expr>(std::move(rhs)),
+    };
+  }
+
+  return lhs;
 }
 
 Ast::Expr Parser::equality() {
@@ -425,6 +445,10 @@ Ast::Operator Parser::tokenToOperator(TokenKind token) {
     return Ast::Operator::Gt;
   case TokenKind::GtEq:
     return Ast::Operator::GtEq;
+  case TokenKind::OrOr:
+    return Ast::Operator::Or;
+  case TokenKind::AndAnd:
+    return Ast::Operator::And;
   default:
     throw std::runtime_error("Token cannot be converted to operator");
   }

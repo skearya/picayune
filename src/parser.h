@@ -20,6 +20,7 @@ struct Parser {
 
   Ast::Expr expression();
   Ast::Expr assignment();
+  Ast::Expr logical();
   Ast::Expr equality();
   Ast::Expr comparison();
   Ast::Expr term();

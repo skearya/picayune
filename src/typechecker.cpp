@@ -125,6 +125,15 @@ TAst::Expr TypeChecker::operator()(const Ast::Binary &node) {
 
     type = TAst::TBoolean{};
     break;
+  case Ast::Operator::Or:
+  case Ast::Operator::And:
+    if (!std::holds_alternative<TAst::TBoolean>(lefttype)) {
+      throw std::runtime_error(
+          "Expected logical operator to be used with booleans");
+    }
+
+    type = TAst::TBoolean{};
+    break;
   }
 
   return TAst::Binary{type, node.span,

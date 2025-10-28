@@ -21,6 +21,8 @@ enum struct Operator {
   LtEq,
   Gt,
   GtEq,
+  Or,
+  And,
 };
 
 struct Number;

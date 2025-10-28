@@ -84,6 +84,10 @@ const char *operatorName(const Ast::Operator &op) {
     return "Gt";
   case Ast::Operator::GtEq:
     return "GtEq";
+  case Ast::Operator::Or:
+    return "Or";
+  case Ast::Operator::And:
+    return "And";
   }
 }
 
