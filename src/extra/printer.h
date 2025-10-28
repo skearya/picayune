@@ -96,6 +96,12 @@ void printExpr(const T &expr, std::string_view filename, std::string prefix,
                       std::format("arg {}", i),
                       node.arguments.size() == 1 ? false : i == 0);
           }
+        } else if constexpr (std::is_same_v<K, Ast::Assign> ||
+                             std::is_same_v<K, TAst::Assign>) {
+          printHeader(43, std::format("Assign \"{}\"", node.variable), type,
+                      filename, node.span);
+
+          printExpr(*node.value, filename, next, "value", false);
         } else if constexpr (std::is_same_v<K, Ast::Grouping> ||
                              std::is_same_v<K, TAst::Grouping>) {
           printHeader(36, "Grouping", type, filename, node.span);

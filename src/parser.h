@@ -19,6 +19,7 @@ struct Parser {
   Token expect(TokenKind kind, std::string_view error);
 
   Ast::Expr expression();
+  Ast::Expr assignment();
   Ast::Expr equality();
   Ast::Expr comparison();
   Ast::Expr term();
@@ -35,8 +36,6 @@ struct Parser {
   Ast::Decl function();
 
   std::vector<Ast::Decl> program();
-
-  // Helpers
 
   Ast::Block block();
 

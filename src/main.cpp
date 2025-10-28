@@ -8,8 +8,13 @@
 #include <sstream>
 #include <string_view>
 
-int main(int, char **) {
-  auto filename = "../example.lang";
+int main(int argc, char **argv) {
+  if (argc != 2) {
+    std::println("Invalid argument count");
+    return 1;
+  }
+
+  auto filename = argv[1];
 
   std::ifstream file{filename};
   std::stringstream buffer;

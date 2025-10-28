@@ -9,7 +9,7 @@
 			"type": "lldb",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/testing",
-			"args": []
+			"args": ["example.lang"]
 		}
 	]
 }

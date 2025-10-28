@@ -29,9 +29,11 @@ struct Boolean;
 struct Ident;
 struct Binary;
 struct Call;
+struct Assign;
 struct Grouping;
 
-using Expr = std::variant<Number, Boolean, Ident, Binary, Call, Grouping>;
+using Expr =
+    std::variant<Number, Boolean, Ident, Binary, Call, Assign, Grouping>;
 
 struct Number {
   Span span;
@@ -62,6 +64,13 @@ struct Call {
   Span span;
   std::string_view function;
   std::vector<Expr> arguments;
+};
+
+struct Assign {
+  Type type;
+  Span span;
+  std::string_view variable;
+  std::unique_ptr<Expr> value;
 };
 
 struct Grouping {

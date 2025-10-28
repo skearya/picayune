@@ -163,6 +163,24 @@ TAst::Expr TypeChecker::operator()(const Ast::Call &node) {
                     std::move(arguments)};
 }
 
+TAst::Expr TypeChecker::operator()(const Ast::Assign &node) {
+  auto targettype = lookup(node.variable);
+
+  if (!targettype.has_value()) {
+    throw std::runtime_error("Assignment target is not defined");
+  }
+
+  auto value = checkExpr(*node.value);
+  auto valuetype = TAst::getType(value);
+
+  if (targettype.value().index() != valuetype.index()) {
+    throw std::runtime_error("Assignment value doesn't match expected type");
+  }
+
+  return TAst::Assign{valuetype, node.span, node.variable,
+                      std::make_unique<TAst::Expr>(std::move(value))};
+}
+
 TAst::Expr TypeChecker::operator()(const Ast::Grouping &node) {
   auto inner = checkExpr(*node.inner);
   auto innertype = TAst::getType(inner);

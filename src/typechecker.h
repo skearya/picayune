@@ -33,6 +33,7 @@ struct TypeChecker {
   TAst::Expr operator()(const Ast::Ident &node);
   TAst::Expr operator()(const Ast::Binary &node);
   TAst::Expr operator()(const Ast::Call &node);
+  TAst::Expr operator()(const Ast::Assign &node);
   TAst::Expr operator()(const Ast::Grouping &node);
 
   TAst::Stmt checkStmt(const Ast::Stmt &node);

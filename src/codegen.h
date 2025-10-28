@@ -34,6 +34,7 @@ struct LLVMCodegen {
   llvm::Value *operator()(const TAst::Ident &node);
   llvm::Value *operator()(const TAst::Binary &node);
   llvm::Value *operator()(const TAst::Call &node);
+  llvm::Value *operator()(const TAst::Assign &node);
   llvm::Value *operator()(const TAst::Grouping &node);
 
   void codegenStmt(const TAst::Stmt &node);

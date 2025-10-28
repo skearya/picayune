@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 /*
@@ -40,7 +41,9 @@ expression-statement: expression SEMI
 
 (* Expressions *)
 
-expression: comparison
+expression: assignment
+
+assignment = <l-value> EQUAL assignment | equality
 
 equality: comparison | comparison ((EQEQ | BANGEQ) comparison)*
 
@@ -86,7 +89,25 @@ Token Parser::expect(TokenKind kind, std::string_view error) {
   return advance();
 }
 
-Ast::Expr Parser::expression() { return equality(); };
+Ast::Expr Parser::expression() { return assignment(); };
+
+Ast::Expr Parser::assignment() {
+  Ast::Expr lhs = equality();
+
+  if (peek().kind == TokenKind::Eq) {
+    advance();
+    Ast::Expr rhs = assignment();
+
+    if (auto ident = std::get_if<Ast::Ident>(&lhs)) {
+      return Ast::Assign{getSpan(lhs).extend(getSpan(rhs)), ident->name,
+                         std::make_unique<Ast::Expr>(std::move(rhs))};
+    } else {
+      throw std::runtime_error("Invalid assignment target");
+    }
+  } else {
+    return lhs;
+  }
+}
 
 Ast::Expr Parser::equality() {
   Ast::Expr lhs = comparison();
