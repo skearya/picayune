@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20.0)
-project(testing VERSION 0.1.0 LANGUAGES C CXX)
+project(picayune VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -17,7 +17,7 @@ add_definitions(${LLVM_DEFINITIONS_LIST})
 
 add_executable(${PROJECT_NAME} src/main.cpp src/parser.cpp src/span.cpp src/tokenizer.cpp src/typechecker.cpp src/codegen.cpp src/extra/printer.cpp)
 
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs -21)
 
 target_link_libraries(${PROJECT_NAME} ${llvm_libs})
 

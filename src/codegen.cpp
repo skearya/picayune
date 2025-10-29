@@ -10,11 +10,18 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/TargetParser/Host.h"
 #include <cassert>
 #include <cstddef>
 #include <stdexcept>
@@ -72,12 +79,63 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
 
                  codegenBlock(node.body);
 
+                 builder.CreateRetVoid();
+
                  llvm::verifyFunction(*function);
 
                  function->print(llvm::errs());
                }},
                decl);
   }
+
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+  llvm::InitializeAllAsmPrinters();
+
+  auto targetTriple = llvm::sys::getDefaultTargetTriple();
+  module.setTargetTriple(llvm::Triple{targetTriple});
+
+  std::string error;
+  auto target =
+      llvm::TargetRegistry::lookupTarget(module.getTargetTriple(), error);
+
+  if (!target) {
+    llvm::errs() << error;
+    return;
+  }
+
+  auto CPU = "generic";
+  auto features = "";
+
+  llvm::TargetOptions opt;
+  auto targetMachine = target->createTargetMachine(
+      llvm::Triple{targetTriple}, CPU, features, opt, llvm::Reloc::PIC_);
+
+  module.setDataLayout(targetMachine->createDataLayout());
+
+  auto filename = "output.o";
+  std::error_code EC;
+  llvm::raw_fd_ostream filestream{filename, EC, llvm::sys::fs::OF_None};
+
+  if (EC) {
+    llvm::errs() << "Could not open file: " << EC.message();
+    return;
+  }
+
+  llvm::legacy::PassManager pass;
+
+  if (targetMachine->addPassesToEmitFile(pass, filestream, nullptr,
+                                         llvm::CodeGenFileType::ObjectFile)) {
+    llvm::errs() << "targetMachine can't emit a file of this type";
+    return;
+  }
+
+  pass.run(module);
+  filestream.flush();
+
+  llvm::outs() << "Wrote " << filename << "\n";
 }
 
 llvm::Value *LLVMCodegen::codegenExpr(const TAst::Expr &node) {
@@ -108,8 +166,8 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Binary &node) {
     auto function = builder.GetInsertBlock()->getParent();
 
     auto startBlock = llvm::BasicBlock::Create(context, "start", function);
-    auto elseBlock = llvm::BasicBlock::Create(context, "else", function);
-    auto mergeBlock = llvm::BasicBlock::Create(context, "merge", function);
+    auto elseBlock = llvm::BasicBlock::Create(context, "else");
+    auto mergeBlock = llvm::BasicBlock::Create(context, "merge");
 
     builder.CreateBr(startBlock);
 
@@ -123,10 +181,12 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Binary &node) {
       builder.CreateCondBr(left, elseBlock, mergeBlock);
     }
 
+    function->insert(function->end(), elseBlock);
     builder.SetInsertPoint(elseBlock);
     auto right = codegenExpr(*node.right);
     builder.CreateBr(mergeBlock);
 
+    function->insert(function->end(), mergeBlock);
     builder.SetInsertPoint(mergeBlock);
     auto phi =
         builder.CreatePHI(llvm::Type::getInt1Ty(context), 2,
@@ -227,8 +287,8 @@ void LLVMCodegen::operator()(const TAst::If &node) {
 
   if (node.elseStatement.has_value()) {
     auto thenBlock = llvm::BasicBlock::Create(context, "then", function);
-    auto elseBlock = llvm::BasicBlock::Create(context, "else", function);
-    auto mergeBlock = llvm::BasicBlock::Create(context, "merge", function);
+    auto elseBlock = llvm::BasicBlock::Create(context, "else");
+    auto mergeBlock = llvm::BasicBlock::Create(context, "merge");
 
     builder.CreateCondBr(cond, thenBlock, elseBlock);
 
@@ -236,14 +296,16 @@ void LLVMCodegen::operator()(const TAst::If &node) {
     codegenStmt(*node.thenStatement);
     builder.CreateBr(mergeBlock);
 
+    function->insert(function->end(), elseBlock);
     builder.SetInsertPoint(elseBlock);
     codegenStmt(*node.elseStatement.value());
     builder.CreateBr(mergeBlock);
 
+    function->insert(function->end(), mergeBlock);
     builder.SetInsertPoint(mergeBlock);
   } else {
     auto thenBlock = llvm::BasicBlock::Create(context, "then", function);
-    auto mergeBlock = llvm::BasicBlock::Create(context, "merge", function);
+    auto mergeBlock = llvm::BasicBlock::Create(context, "merge");
 
     builder.CreateCondBr(cond, thenBlock, mergeBlock);
 
@@ -251,6 +313,7 @@ void LLVMCodegen::operator()(const TAst::If &node) {
     codegenStmt(*node.thenStatement);
     builder.CreateBr(mergeBlock);
 
+    function->insert(function->end(), mergeBlock);
     builder.SetInsertPoint(mergeBlock);
   }
 }

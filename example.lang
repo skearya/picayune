@@ -1,9 +1,0 @@
-function factorial(n: int): int {
-    if (n == 1) {
-        let a = n - 1;
-        a = n + 1;
-        return a;
-    } else {
-        return n * factorial(n - 1);
-    }
-}
