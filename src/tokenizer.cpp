@@ -1,6 +1,6 @@
-#include "tokenizer.h"
-#include "span.h"
-#include "token.h"
+#include "tokenizer.hpp"
+#include "span.hpp"
+#include "token.hpp"
 #include <charconv>
 #include <cstdint>
 #include <stdexcept>

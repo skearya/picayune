@@ -1,6 +1,6 @@
 #pragma once
 
-#include "span.h"
+#include "span.hpp"
 #include <cstdint>
 
 enum struct TokenKind {

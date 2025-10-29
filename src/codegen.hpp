@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tast.h"
+#include "tast.hpp"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"

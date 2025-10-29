@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ast.h"
-#include "token.h"
-#include "tokenizer.h"
+#include "ast.hpp"
+#include "token.hpp"
+#include "tokenizer.hpp"
 #include <string_view>
 #include <vector>
 

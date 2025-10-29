@@ -1,8 +1,8 @@
-#include "codegen.h"
-#include "extra/printer.h"
-#include "parser.h"
-#include "tokenizer.h"
-#include "typechecker.h"
+#include "codegen.hpp"
+#include "extra/printer.hpp"
+#include "parser.hpp"
+#include "tokenizer.hpp"
+#include "typechecker.hpp"
 #include <fstream>
 #include <print>
 #include <sstream>

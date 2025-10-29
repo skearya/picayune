@@ -1,8 +1,8 @@
-#include "parser.h"
-#include "ast.h"
-#include "span.h"
-#include "token.h"
-#include "utils.h"
+#include "parser.hpp"
+#include "ast.hpp"
+#include "span.hpp"
+#include "token.hpp"
+#include "utils.hpp"
 #include <memory>
 #include <optional>
 #include <stdexcept>

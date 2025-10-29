@@ -1,29 +1,28 @@
 #pragma once
 
-#include "span.h"
+#include "ast.hpp"
+#include "span.hpp"
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
-namespace Ast {
+namespace TAst {
 
-enum struct Operator {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Eq,
-  NotEq,
-  Lt,
-  LtEq,
-  Gt,
-  GtEq,
-  Or,
-  And,
-};
+struct TInt;
+struct TBoolean;
+struct TVoid;
+
+using Type = std::variant<TInt, TBoolean, TVoid>;
+
+struct TInt {};
+
+struct TBoolean {};
+
+struct TVoid {};
 
 struct Number;
 struct Boolean;
@@ -47,30 +46,35 @@ struct Boolean {
 };
 
 struct Ident {
+  Type type;
   Span span;
   std::string_view name;
 };
 
 struct Binary {
+  Type type;
   Span span;
   std::unique_ptr<Expr> left;
-  Operator op;
+  Ast::Operator op;
   std::unique_ptr<Expr> right;
 };
 
 struct Call {
+  Type type;
   Span span;
   std::string_view function;
   std::vector<Expr> arguments;
 };
 
 struct Assign {
+  Type type;
   Span span;
   std::string_view variable;
   std::unique_ptr<Expr> value;
 };
 
 struct Grouping {
+  Type type;
   Span span;
   std::unique_ptr<Expr> inner;
 };
@@ -116,16 +120,32 @@ struct Function;
 using Decl = std::variant<Function>;
 
 struct Parameter {
+  Type type;
   std::string_view name;
-  std::string_view type;
 };
 
 struct Function {
   Span span;
+  Type type;
   std::string_view name;
   std::vector<Parameter> params;
-  std::string_view type;
   Block body;
 };
 
-} // namespace Ast
+template <typename T> Type getType(const T &arg) {
+  return std::visit(
+      [](const auto &node) -> Type {
+        using K = std::decay_t<decltype(node)>;
+
+        if constexpr (std::is_same_v<K, Number>) {
+          return TInt{};
+        } else if constexpr (std::is_same_v<K, Boolean>) {
+          return TBoolean{};
+        } else {
+          return node.type;
+        }
+      },
+      arg);
+}
+
+} // namespace TAst

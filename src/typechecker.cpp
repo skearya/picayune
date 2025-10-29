@@ -1,7 +1,7 @@
-#include "typechecker.h"
-#include "ast.h"
-#include "tast.h"
-#include "utils.h"
+#include "typechecker.hpp"
+#include "ast.hpp"
+#include "tast.hpp"
+#include "utils.hpp"
 #include <cstddef>
 #include <memory>
 #include <optional>

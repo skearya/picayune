@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ast.h"
-#include "tast.h"
+#include "ast.hpp"
+#include "tast.hpp"
 #include <optional>
 #include <string_view>
 #include <unordered_map>
