@@ -8,8 +8,8 @@
 			"name": "Debug",
 			"type": "lldb",
 			"request": "launch",
-			"program": "${workspaceFolder}/build/testing",
-			"args": ["example.lang"]
+			"program": "${workspaceFolder}/build/picayune",
+			"args": ["${workspaceFolder}/test/example.lang"]
 		}
 	]
 }

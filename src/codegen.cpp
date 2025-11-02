@@ -24,6 +24,7 @@
 #include "llvm/TargetParser/Host.h"
 #include <cassert>
 #include <cstddef>
+#include <print>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
@@ -60,33 +61,48 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
   }
 
   for (const auto &decl : program) {
-    std::visit(overloads{[this](const TAst::Function &node) {
-                 auto function = functions.at(node.name);
+    std::visit(
+        overloads{[this](const TAst::Function &node) {
+          auto function = functions.at(node.name);
 
-                 auto block =
-                     llvm::BasicBlock::Create(context, "entry", function);
+          auto block = llvm::BasicBlock::Create(context, "entry", function);
 
-                 builder.SetInsertPoint(block);
+          builder.SetInsertPoint(block);
 
-                 values.clear();
+          values.clear();
 
-                 for (auto &arg : function->args()) {
-                   auto alloca = createEntryBlockAlloca(function, arg.getType(),
-                                                        arg.getName());
+          for (auto &arg : function->args()) {
+            auto alloca =
+                createEntryBlockAlloca(function, arg.getType(), arg.getName());
 
-                   builder.CreateStore(&arg, alloca);
-                 }
+            builder.CreateStore(&arg, alloca);
+          }
 
-                 codegenBlock(node.body);
+          codegenBlock(node.body);
+          builder.CreateRetVoid();
 
-                 builder.CreateRetVoid();
+          if (llvm::verifyFunction(*function, &llvm::errs())) {
+            std::println("WARNING: Function {} failed verification ^^^",
+                         node.name);
+          } else {
+            std::println("Function {} verified with no errors.", node.name);
+          }
 
-                 llvm::verifyFunction(*function);
+          std::println();
 
-                 function->print(llvm::errs());
-               }},
-               decl);
+          function->print(llvm::errs());
+          std::println();
+        }},
+        decl);
   }
+
+  if (llvm::verifyModule(module, &llvm::errs())) {
+    std::println("WARNING: Module failed verification ^^^");
+  } else {
+    std::println("Module verified with no errors.");
+  }
+
+  std::println();
 
   llvm::InitializeAllTargetInfos();
   llvm::InitializeAllTargets();
@@ -153,10 +169,9 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Boolean &node) {
 
 llvm::Value *LLVMCodegen::operator()(const TAst::Ident &node) {
   auto alloca = values.at(node.name);
+  auto allocatype = alloca->getAllocatedType();
 
-  auto type = alloca->getAllocatedType();
-
-  return builder.CreateLoad(type, alloca, node.name);
+  return builder.CreateLoad(allocatype, alloca, node.name);
 }
 
 llvm::Value *LLVMCodegen::operator()(const TAst::Binary &node) {
@@ -254,7 +269,7 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Assign &node) {
   auto variable = values.at(node.variable);
   auto value = codegenExpr(*node.value);
 
-  builder.CreateStore(variable, value);
+  builder.CreateStore(value, variable);
 
   return value;
 }
@@ -281,7 +296,7 @@ void LLVMCodegen::operator()(const TAst::Let &node) {
 }
 
 void LLVMCodegen::operator()(const TAst::If &node) {
-  auto cond = codegenExpr(node.cond);
+  auto cond = codegenExpr(node.condition);
 
   auto function = builder.GetInsertBlock()->getParent();
 
@@ -316,6 +331,28 @@ void LLVMCodegen::operator()(const TAst::If &node) {
     function->insert(function->end(), mergeBlock);
     builder.SetInsertPoint(mergeBlock);
   }
+}
+
+void LLVMCodegen::operator()(const TAst::While &node) {
+  auto function = builder.GetInsertBlock()->getParent();
+
+  auto startBlock = llvm::BasicBlock::Create(context, "start", function);
+  auto bodyBlock = llvm::BasicBlock::Create(context, "body");
+  auto mergeBlock = llvm::BasicBlock::Create(context, "merge");
+
+  builder.CreateBr(startBlock);
+
+  builder.SetInsertPoint(startBlock);
+  auto cond = codegenExpr(node.condition);
+  builder.CreateCondBr(cond, bodyBlock, mergeBlock);
+
+  function->insert(function->end(), bodyBlock);
+  builder.SetInsertPoint(bodyBlock);
+  codegenStmt(*node.body);
+  builder.CreateBr(startBlock);
+
+  function->insert(function->end(), mergeBlock);
+  builder.SetInsertPoint(mergeBlock);
 }
 
 void LLVMCodegen::operator()(const TAst::Return &node) {

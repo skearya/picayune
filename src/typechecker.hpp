@@ -41,6 +41,7 @@ struct TypeChecker {
   TAst::Stmt operator()(const Ast::Block &node);
   TAst::Stmt operator()(const Ast::Let &node);
   TAst::Stmt operator()(const Ast::If &node);
+  TAst::Stmt operator()(const Ast::While &node);
   TAst::Stmt operator()(const Ast::Return &node);
   TAst::Stmt operator()(const Ast::ExprStmt &node);
 

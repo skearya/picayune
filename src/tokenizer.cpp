@@ -171,6 +171,8 @@ Token Tokenizer::token() {
         kind = TokenKind::If;
       } else if (matched == "else") {
         kind = TokenKind::Else;
+      } else if (matched == "while") {
+        kind = TokenKind::While;
       } else if (matched == "return") {
         kind = TokenKind::Return;
       } else {

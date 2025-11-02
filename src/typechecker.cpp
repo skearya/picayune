@@ -216,7 +216,7 @@ TAst::Stmt TypeChecker::operator()(const Ast::Let &node) {
 }
 
 TAst::Stmt TypeChecker::operator()(const Ast::If &node) {
-  auto cond = checkExpr(node.cond);
+  auto cond = checkExpr(node.condition);
   auto condtype = TAst::getType(cond);
 
   if (!std::holds_alternative<TAst::TBoolean>(condtype)) {
@@ -232,6 +232,21 @@ TAst::Stmt TypeChecker::operator()(const Ast::If &node) {
   return TAst::If{node.span, std::move(cond),
                   std::make_unique<TAst::Stmt>(std::move(thenStatement)),
                   std::move(elseStatement)};
+}
+
+TAst::Stmt TypeChecker::operator()(const Ast::While &node) {
+  auto cond = checkExpr(node.condition);
+  auto condtype = TAst::getType(cond);
+
+  if (!std::holds_alternative<TAst::TBoolean>(condtype)) {
+    throw std::runtime_error(
+        "Expected while statement's condition's type to be 'bool'");
+  }
+
+  auto body = checkStmt(*node.body);
+
+  return TAst::While{node.span, std::move(cond),
+                     std::make_unique<TAst::Stmt>(std::move(body))};
 }
 
 TAst::Stmt TypeChecker::operator()(const Ast::Return &node) {

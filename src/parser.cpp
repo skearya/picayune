@@ -23,7 +23,7 @@ function: FUNCTION name LPAREN params? RPAREN COLON type block
 
 (* Statements *)
 
-statement: block | let | if | return | expression-statement
+statement: block | let | if | while | return | expression-statement
 
 block: LBRACE statement* RBRACE
 
@@ -32,6 +32,8 @@ let: LET IDENT EQUAL expression SEMI
 if:
   | IF LPARAM expression RPARAM statement ELSE statement
   | IF LPARAM expression RPARAM statement
+
+while: WHILE LPARAM expression RPARAM statement
 
 return:
   | RETURN expression SEMI
@@ -232,7 +234,9 @@ Ast::Expr Parser::primary() {
     }
   } else if (peek().kind == TokenKind::LParen) {
     Token start = advance();
+
     Ast::Expr inner = expression();
+
     const Token closing =
         expect(TokenKind::RParen, "Expected ')' after expression");
 
@@ -251,6 +255,8 @@ Ast::Stmt Parser::statement() {
     return let();
   case TokenKind::If:
     return ifStatement();
+  case TokenKind::While:
+    return whileStatement();
   case TokenKind::Return:
     return returnStatement();
   default:
@@ -299,6 +305,24 @@ Ast::Stmt Parser::ifStatement() {
   }
 }
 
+Ast::Stmt Parser::whileStatement() {
+  Token start = expect(TokenKind::While, "Expected 'while'");
+
+  expect(TokenKind::LParen, "Expected '(' after while");
+
+  Ast::Expr cond = expression();
+
+  expect(TokenKind::RParen, "Expected ')' after while condition");
+
+  Ast::Stmt body = statement();
+
+  return Ast::While{
+      start.span.extend(getSpan(body)),
+      std::move(cond),
+      std::make_unique<Ast::Stmt>(std::move(body)),
+  };
+}
+
 Ast::Stmt Parser::returnStatement() {
   Token start = expect(TokenKind::Return, "Expected 'return'");
 
@@ -342,7 +366,7 @@ Ast::Decl Parser::function() {
 
   std::vector<Ast::Parameter> params = parameters();
 
-  expect(TokenKind::RParen, "Expected ')' after function parameters");
+  expect(TokenKind::RParen, "Expected ')' after function parameter");
 
   expect(TokenKind::Colon, "Expected ':' after function parameters");
 

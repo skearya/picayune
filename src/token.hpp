@@ -35,6 +35,7 @@ enum struct TokenKind {
   Let,
   If,
   Else,
+  While,
   Return,
 
   Eof

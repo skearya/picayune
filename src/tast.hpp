@@ -82,10 +82,11 @@ struct Grouping {
 struct Block;
 struct Let;
 struct If;
+struct While;
 struct Return;
 struct ExprStmt;
 
-using Stmt = std::variant<Block, Let, If, Return, ExprStmt>;
+using Stmt = std::variant<Block, Let, If, While, Return, ExprStmt>;
 
 struct Block {
   Span span;
@@ -100,9 +101,15 @@ struct Let {
 
 struct If {
   Span span;
-  Expr cond;
+  Expr condition;
   std::unique_ptr<Stmt> thenStatement;
   std::optional<std::unique_ptr<Stmt>> elseStatement;
+};
+
+struct While {
+  Span span;
+  Expr condition;
+  std::unique_ptr<Stmt> body;
 };
 
 struct Return {

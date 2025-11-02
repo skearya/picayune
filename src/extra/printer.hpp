@@ -146,13 +146,19 @@ void printStmt(const T &stmt, std::string_view filename, std::string prefix,
                              std::is_same_v<K, TAst::If>) {
           printHeader(181, "If", std::nullopt, filename, node.span);
 
-          printExpr(node.cond, filename, next, "cond", true);
+          printExpr(node.condition, filename, next, "cond", true);
           printStmt(*node.thenStatement, filename, next, "then",
                     node.elseStatement.has_value());
           if (node.elseStatement.has_value()) {
             printStmt(*node.elseStatement->get(), filename, next, "else",
                       false);
           }
+        } else if constexpr (std::is_same_v<K, Ast::While> ||
+                             std::is_same_v<K, TAst::While>) {
+          printHeader(181, "While", std::nullopt, filename, node.span);
+
+          printExpr(node.condition, filename, next, "cond", true);
+          printStmt(*node.body, filename, next, "body", false);
         } else if constexpr (std::is_same_v<K, Ast::Return> ||
                              std::is_same_v<K, TAst::Return>) {
           printHeader(111, "Return", std::nullopt, filename, node.span);

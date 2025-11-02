@@ -27,12 +27,12 @@ int main(int argc, char **argv) {
       Parser{Tokenizer{std::string_view{source}}}.program();
 
   Printer::printProgram(root, "example.lang");
-
   std::println();
 
   std::vector<TAst::Decl> troot = TypeChecker{}.check(root);
 
   Printer::printProgram(troot, "example.lang");
+  std::println();
 
   LLVMCodegen{}.codegen(troot);
 }
