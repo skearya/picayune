@@ -52,3 +52,6 @@ struct TypeChecker {
 };
 
 TAst::Type identToType(std::string_view ident);
+
+bool doesBlockReturn(const TAst::Block &node);
+bool doesReturn(const TAst::Stmt &node);

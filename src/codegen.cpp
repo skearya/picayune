@@ -379,6 +379,11 @@ void LLVMCodegen::operator()(const TAst::ExprStmt &node) {
 void LLVMCodegen::codegenBlock(const TAst::Block &node) {
   for (const auto &stmt : node.statements) {
     codegenStmt(stmt);
+
+    // Code after a terminator is always useless.
+    if (builder.GetInsertBlock()->getTerminator()) {
+      break;
+    }
   }
 }
 

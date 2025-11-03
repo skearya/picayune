@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <print>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
@@ -36,25 +37,31 @@ TypeChecker::check(const std::vector<Ast::Decl> &program) {
   std::vector<TAst::Decl> typedDecls;
 
   for (const auto &decl : partialDeclarations) {
-    TAst::Decl typedDecl =
-        std::visit(overloads{[this](const PartialFunction &node) {
-                     currentFunction = &node;
+    TAst::Decl typedDecl = std::visit(
+        overloads{[this](const PartialFunction &node) {
+          currentFunction = &node;
 
-                     environments.push_back(
-                         std::unordered_map<std::string_view, TAst::Type>{});
+          environments.push_back(
+              std::unordered_map<std::string_view, TAst::Type>{});
 
-                     for (const auto &param : node.params) {
-                       environments.back()[param.name] = param.type;
-                     }
+          for (const auto &param : node.params) {
+            environments.back()[param.name] = param.type;
+          }
 
-                     auto block = checkBlock(node.body);
+          auto block = checkBlock(node.body);
 
-                     environments.pop_back();
+          environments.pop_back();
 
-                     return TAst::Function{node.span, node.type, node.name,
-                                           node.params, std::move(block)};
-                   }},
-                   decl);
+          if (node.type.index() != TAst::Type{TAst::TVoid{}}.index() &&
+              !doesBlockReturn(block)) {
+            throw std::runtime_error(
+                "Function does not return value in all branches");
+          }
+
+          return TAst::Function{node.span, node.type, node.name, node.params,
+                                std::move(block)};
+        }},
+        decl);
 
     typedDecls.push_back(std::move(typedDecl));
   }
@@ -322,4 +329,33 @@ TAst::Type identToType(std::string_view ident) {
   } else {
     throw std::runtime_error("Couldn't resolve type");
   }
+}
+
+bool doesBlockReturn(const TAst::Block &node) {
+  for (size_t i = 0; i < node.statements.size(); i++) {
+    if (doesReturn(node.statements.at(i))) {
+      if (i != node.statements.size() - 1) {
+        std::println("Warning: Code after return statement is unreachable");
+      }
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool doesReturn(const TAst::Stmt &node) {
+  return std::visit(
+      overloads{[](const TAst::Block &node) { return doesBlockReturn(node); },
+                [](const TAst::Let &) { return false; },
+                [](const TAst::If &node) {
+                  return node.elseStatement.has_value() &&
+                         doesReturn(*node.thenStatement) &&
+                         doesReturn(*node.elseStatement.value());
+                },
+                [](const TAst::While &) { return false; },
+                [](const TAst::Return &) { return true; },
+                [](const TAst::ExprStmt &) { return false; }},
+      node);
 }
