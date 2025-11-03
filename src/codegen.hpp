@@ -53,4 +53,6 @@ struct LLVMCodegen {
   llvm::AllocaInst *createEntryBlockAlloca(llvm::Function *function,
                                            llvm::Type *type,
                                            llvm::StringRef name);
+
+  bool createBreakIfUnterminated(llvm::BasicBlock *dest);
 };

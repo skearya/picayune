@@ -22,6 +22,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/Host.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <cassert>
 #include <cstddef>
 #include <print>
@@ -79,7 +80,15 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
           }
 
           codegenBlock(node.body);
-          builder.CreateRetVoid();
+
+          llvm::EliminateUnreachableBlocks(*function);
+
+          // If we have a `void` function that doesn't have an explicit return,
+          // add it.
+          if (node.type.index() == TAst::Type{TAst::TVoid{}}.index() &&
+              !function->back().getTerminator()) {
+            builder.CreateRetVoid();
+          }
 
           if (llvm::verifyFunction(*function, &llvm::errs())) {
             std::println("WARNING: Function {} failed verification ^^^",
@@ -309,12 +318,12 @@ void LLVMCodegen::operator()(const TAst::If &node) {
 
     builder.SetInsertPoint(thenBlock);
     codegenStmt(*node.thenStatement);
-    builder.CreateBr(mergeBlock);
+    createBreakIfUnterminated(mergeBlock);
 
     function->insert(function->end(), elseBlock);
     builder.SetInsertPoint(elseBlock);
     codegenStmt(*node.elseStatement.value());
-    builder.CreateBr(mergeBlock);
+    createBreakIfUnterminated(mergeBlock);
 
     function->insert(function->end(), mergeBlock);
     builder.SetInsertPoint(mergeBlock);
@@ -326,7 +335,7 @@ void LLVMCodegen::operator()(const TAst::If &node) {
 
     builder.SetInsertPoint(thenBlock);
     codegenStmt(*node.thenStatement);
-    builder.CreateBr(mergeBlock);
+    createBreakIfUnterminated(mergeBlock);
 
     function->insert(function->end(), mergeBlock);
     builder.SetInsertPoint(mergeBlock);
@@ -349,7 +358,7 @@ void LLVMCodegen::operator()(const TAst::While &node) {
   function->insert(function->end(), bodyBlock);
   builder.SetInsertPoint(bodyBlock);
   codegenStmt(*node.body);
-  builder.CreateBr(startBlock);
+  createBreakIfUnterminated(startBlock);
 
   function->insert(function->end(), mergeBlock);
   builder.SetInsertPoint(mergeBlock);
@@ -399,3 +408,12 @@ llvm::AllocaInst *LLVMCodegen::createEntryBlockAlloca(llvm::Function *function,
 
   return alloc;
 };
+
+bool LLVMCodegen::createBreakIfUnterminated(llvm::BasicBlock *dest) {
+  if (builder.GetInsertBlock()->getTerminator()) {
+    return false;
+  } else {
+    builder.CreateBr(dest);
+    return true;
+  }
+}
