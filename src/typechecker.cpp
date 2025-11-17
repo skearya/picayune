@@ -256,6 +256,26 @@ TAst::Stmt TypeChecker::operator()(const Ast::While &node) {
                      std::make_unique<TAst::Stmt>(std::move(body))};
 }
 
+TAst::Stmt TypeChecker::operator()(const Ast::For &node) {
+  auto init = checkStmt(*node.initializer);
+
+  auto cond = checkExpr(node.condition);
+  auto condtype = TAst::getType(cond);
+
+  if (!std::holds_alternative<TAst::TBoolean>(condtype)) {
+    throw std::runtime_error(
+        "Expected for statement's condition's type to be 'bool'");
+  }
+
+  auto update = checkExpr(node.update);
+
+  auto body = checkStmt(*node.body);
+
+  return TAst::For{node.span, std::make_unique<TAst::Stmt>(std::move(init)),
+                   std::move(cond), std::move(update),
+                   std::make_unique<TAst::Stmt>(std::move(body))};
+}
+
 TAst::Stmt TypeChecker::operator()(const Ast::Return &node) {
   auto value =
       node.value.transform([this](auto &expr) { return checkExpr(expr); });
@@ -355,6 +375,7 @@ bool doesReturn(const TAst::Stmt &node) {
                          doesReturn(*node.elseStatement.value());
                 },
                 [](const TAst::While &) { return false; },
+                [](const TAst::For &) { return false; },
                 [](const TAst::Return &) { return true; },
                 [](const TAst::ExprStmt &) { return false; }},
       node);

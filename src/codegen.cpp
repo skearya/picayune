@@ -93,11 +93,11 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
           if (llvm::verifyFunction(*function, &llvm::errs())) {
             std::println("WARNING: Function {} failed verification ^^^",
                          node.name);
+            std::println();
           } else {
             std::println("Function {} verified with no errors.", node.name);
+            std::println();
           }
-
-          std::println();
 
           function->print(llvm::errs());
           std::println();
@@ -107,11 +107,11 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
 
   if (llvm::verifyModule(module, &llvm::errs())) {
     std::println("WARNING: Module failed verification ^^^");
+    std::println();
   } else {
     std::println("Module verified with no errors.");
+    std::println();
   }
-
-  std::println();
 
   llvm::InitializeAllTargetInfos();
   llvm::InitializeAllTargets();
@@ -362,6 +362,10 @@ void LLVMCodegen::operator()(const TAst::While &node) {
 
   function->insert(function->end(), mergeBlock);
   builder.SetInsertPoint(mergeBlock);
+}
+
+void LLVMCodegen::operator()(const TAst::For &) {
+  throw std::runtime_error("#todo");
 }
 
 void LLVMCodegen::operator()(const TAst::Return &node) {

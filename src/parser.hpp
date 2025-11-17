@@ -31,6 +31,7 @@ struct Parser {
   Ast::Stmt let();
   Ast::Stmt ifStatement();
   Ast::Stmt whileStatement();
+  Ast::Stmt forStatement();
   Ast::Stmt returnStatement();
   Ast::Stmt expressionStatement();
 

@@ -23,7 +23,7 @@ function: FUNCTION name LPAREN params? RPAREN COLON type block
 
 (* Statements *)
 
-statement: block | let | if | while | return | expression-statement
+statement: block | let | if | while | for | return | expression-statement
 
 block: LBRACE statement* RBRACE
 
@@ -34,6 +34,9 @@ if:
   | IF LPARAM expression RPARAM statement
 
 while: WHILE LPARAM expression RPARAM statement
+
+for: FOR LPARAM ((expression-statement | let) expression SEMI expression) RPARAM
+statement
 
 return:
   | RETURN expression SEMI
@@ -80,7 +83,7 @@ Parser::Parser(Tokenizer t) : tokenizer{t}, current{tokenizer.token()} {}
 Token Parser::peek() { return current; }
 
 Token Parser::advance() {
-  const Token prev = current;
+  Token prev = current;
   current = tokenizer.token();
   return prev;
 }
@@ -117,7 +120,7 @@ Ast::Expr Parser::logical() {
   Ast::Expr lhs = equality();
 
   while (peek().kind == TokenKind::OrOr || peek().kind == TokenKind::AndAnd) {
-    const Token op = advance();
+    Token op = advance();
     Ast::Expr rhs = equality();
 
     lhs = Ast::Binary{
@@ -135,7 +138,7 @@ Ast::Expr Parser::equality() {
   Ast::Expr lhs = comparison();
 
   while (peek().kind == TokenKind::EqEq || peek().kind == TokenKind::BangEq) {
-    const Token op = advance();
+    Token op = advance();
     Ast::Expr rhs = comparison();
 
     lhs = Ast::Binary{
@@ -154,7 +157,7 @@ Ast::Expr Parser::comparison() {
 
   while (peek().kind == TokenKind::Lt || peek().kind == TokenKind::LtEq ||
          peek().kind == TokenKind::Gt || peek().kind == TokenKind::GtEq) {
-    const Token op = advance();
+    Token op = advance();
     Ast::Expr rhs = term();
 
     lhs = Ast::Binary{
@@ -172,7 +175,7 @@ Ast::Expr Parser::term() {
   Ast::Expr lhs = factor();
 
   while (peek().kind == TokenKind::Plus || peek().kind == TokenKind::Minus) {
-    const Token op = advance();
+    Token op = advance();
     Ast::Expr rhs = factor();
 
     lhs = Ast::Binary{
@@ -190,7 +193,7 @@ Ast::Expr Parser::factor() {
   Ast::Expr lhs = primary();
 
   while (peek().kind == TokenKind::Star || peek().kind == TokenKind::Slash) {
-    const Token op = advance();
+    Token op = advance();
     Ast::Expr rhs = factor();
 
     lhs = Ast::Binary{
@@ -206,15 +209,15 @@ Ast::Expr Parser::factor() {
 
 Ast::Expr Parser::primary() {
   if (peek().kind == TokenKind::Num) {
-    const Token num = advance();
+    Token num = advance();
 
     return Ast::Number{num.span, num.value.integer};
   } else if (peek().kind == TokenKind::True) {
-    const Token t = advance();
+    Token t = advance();
 
     return Ast::Boolean{t.span, true};
   } else if (peek().kind == TokenKind::False) {
-    const Token f = advance();
+    Token f = advance();
 
     return Ast::Boolean{f.span, false};
   } else if (peek().kind == TokenKind::Ident) {
@@ -237,8 +240,7 @@ Ast::Expr Parser::primary() {
 
     Ast::Expr inner = expression();
 
-    const Token closing =
-        expect(TokenKind::RParen, "Expected ')' after expression");
+    Token closing = expect(TokenKind::RParen, "Expected ')' after expression");
 
     return Ast::Grouping{start.span.extend(closing.span),
                          std::make_unique<Ast::Expr>(std::move(inner))};
@@ -257,6 +259,8 @@ Ast::Stmt Parser::statement() {
     return ifStatement();
   case TokenKind::While:
     return whileStatement();
+  case TokenKind::For:
+    return forStatement();
   case TokenKind::Return:
     return returnStatement();
   default:
@@ -323,17 +327,48 @@ Ast::Stmt Parser::whileStatement() {
   };
 }
 
+Ast::Stmt Parser::forStatement() {
+  Token start = expect(TokenKind::For, "Expected 'for'");
+
+  expect(TokenKind::LParen, "Expected '(' after for");
+
+  Ast::Stmt init = statement();
+
+  if (!std::holds_alternative<Ast::Let>(init) &&
+      !std::holds_alternative<Ast::ExprStmt>(init)) {
+    throw std::runtime_error("Expected for loop initalizer to either be a let "
+                             "or expression statement");
+  }
+
+  Ast::Expr condition = expression();
+
+  expect(TokenKind::Semi, "Expected ';' after for loop condition");
+
+  Ast::Expr update = expression();
+
+  expect(TokenKind::RParen, "Expected ')' after for loop update expression");
+
+  Ast::Stmt body = statement();
+
+  return Ast::For{
+      start.span.extend(getSpan(body)),
+      std::make_unique<Ast::Stmt>(std::move(init)),
+      std::move(condition),
+      std::move(update),
+      std::make_unique<Ast::Stmt>(std::move(body)),
+  };
+}
+
 Ast::Stmt Parser::returnStatement() {
   Token start = expect(TokenKind::Return, "Expected 'return'");
 
   if (peek().kind == TokenKind::Semi) {
-    const Token semi = advance();
+    Token semi = advance();
 
     return Ast::Return{start.span.extend(semi.span), std::nullopt};
   } else {
     Ast::Expr value = expression();
-    const Token closing =
-        expect(TokenKind::Semi, "Expected ';' after expression");
+    Token closing = expect(TokenKind::Semi, "Expected ';' after expression");
 
     return Ast::Return{start.span.extend(closing.span),
                        std::optional{std::move(value)}};
@@ -342,8 +377,7 @@ Ast::Stmt Parser::returnStatement() {
 
 Ast::Stmt Parser::expressionStatement() {
   Ast::Expr expr = expression();
-  const Token closing =
-      expect(TokenKind::Semi, "Expected ';' after expression");
+  Token closing = expect(TokenKind::Semi, "Expected ';' after expression");
 
   return Ast::ExprStmt{getSpan(expr).extend(closing.span), std::move(expr)};
 }

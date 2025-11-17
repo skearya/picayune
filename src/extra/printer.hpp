@@ -159,6 +159,14 @@ void printStmt(const T &stmt, std::string_view filename, std::string prefix,
 
           printExpr(node.condition, filename, next, "cond", true);
           printStmt(*node.body, filename, next, "body", false);
+        } else if constexpr (std::is_same_v<K, Ast::For> ||
+                             std::is_same_v<K, TAst::For>) {
+          printHeader(181, "For", std::nullopt, filename, node.span);
+
+          printStmt(*node.initializer, filename, next, "init", true);
+          printExpr(node.condition, filename, next, "cond", true);
+          printExpr(node.update, filename, next, "update", true);
+          printStmt(*node.body, filename, next, "body", false);
         } else if constexpr (std::is_same_v<K, Ast::Return> ||
                              std::is_same_v<K, TAst::Return>) {
           printHeader(111, "Return", std::nullopt, filename, node.span);
