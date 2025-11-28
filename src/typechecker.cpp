@@ -271,9 +271,14 @@ TAst::Stmt TypeChecker::operator()(const Ast::For &node) {
 
   auto body = checkStmt(*node.body);
 
-  return TAst::For{node.span, std::make_unique<TAst::Stmt>(std::move(init)),
-                   std::move(cond), std::move(update),
-                   std::make_unique<TAst::Stmt>(std::move(body))};
+  std::vector<TAst::Stmt> statements{};
+
+  statements.push_back(std::move(init));
+  statements.push_back(
+      TAst::While{node.span, std::move(cond),
+                  std::make_unique<TAst::Stmt>(std::move(body))});
+
+  return TAst::Block{node.span, std::move(statements)};
 }
 
 TAst::Stmt TypeChecker::operator()(const Ast::Return &node) {
@@ -375,7 +380,6 @@ bool doesReturn(const TAst::Stmt &node) {
                          doesReturn(*node.elseStatement.value());
                 },
                 [](const TAst::While &) { return false; },
-                [](const TAst::For &) { return false; },
                 [](const TAst::Return &) { return true; },
                 [](const TAst::ExprStmt &) { return false; }},
       node);

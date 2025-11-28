@@ -43,7 +43,6 @@ struct LLVMCodegen {
   void operator()(const TAst::Let &node);
   void operator()(const TAst::If &node);
   void operator()(const TAst::While &node);
-  void operator()(const TAst::For &node);
   void operator()(const TAst::Return &node);
   void operator()(const TAst::ExprStmt &node);
 

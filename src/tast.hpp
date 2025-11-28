@@ -83,11 +83,10 @@ struct Block;
 struct Let;
 struct If;
 struct While;
-struct For;
 struct Return;
 struct ExprStmt;
 
-using Stmt = std::variant<Block, Let, If, While, For, Return, ExprStmt>;
+using Stmt = std::variant<Block, Let, If, While, Return, ExprStmt>;
 
 struct Block {
   Span span;
@@ -110,14 +109,6 @@ struct If {
 struct While {
   Span span;
   Expr condition;
-  std::unique_ptr<Stmt> body;
-};
-
-struct For {
-  Span span;
-  std::unique_ptr<Stmt> initializer;
-  Expr condition;
-  Expr update;
   std::unique_ptr<Stmt> body;
 };
 

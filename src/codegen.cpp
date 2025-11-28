@@ -364,31 +364,6 @@ void LLVMCodegen::operator()(const TAst::While &node) {
   builder.SetInsertPoint(mergeBlock);
 }
 
-void LLVMCodegen::operator()(const TAst::For &node) {
-  codegenStmt(*node.initializer);
-
-  auto function = builder.GetInsertBlock()->getParent();
-
-  auto startBlock = llvm::BasicBlock::Create(context, "start", function);
-  auto bodyBlock = llvm::BasicBlock::Create(context, "body");
-  auto mergeBlock = llvm::BasicBlock::Create(context, "merge");
-
-  builder.CreateBr(startBlock);
-
-  builder.SetInsertPoint(startBlock);
-  auto cond = codegenExpr(node.condition);
-  builder.CreateCondBr(cond, bodyBlock, mergeBlock);
-
-  function->insert(function->end(), bodyBlock);
-  builder.SetInsertPoint(bodyBlock);
-  codegenStmt(*node.body);
-  codegenExpr(node.update);
-  createBreakIfUnterminated(startBlock);
-
-  function->insert(function->end(), mergeBlock);
-  builder.SetInsertPoint(mergeBlock);
-}
-
 void LLVMCodegen::operator()(const TAst::Return &node) {
   if (node.value.has_value()) {
     builder.CreateRet(codegenExpr(*node.value));
