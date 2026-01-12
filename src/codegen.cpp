@@ -22,9 +22,11 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/Host.h"
+#include "llvm/TargetParser/SubtargetFeature.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <cassert>
 #include <cstddef>
+#include <llvm/Support/CodeGen.h>
 #include <print>
 #include <stdexcept>
 #include <string_view>
@@ -131,12 +133,24 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
     return;
   }
 
-  auto CPU = "generic";
-  auto features = "";
+  auto CPU = llvm::sys::getHostCPUName();
+
+  llvm::SubtargetFeatures features;
+  llvm::StringMap<bool> hostFeatures = llvm::sys::getHostCPUFeatures();
+
+  for (const auto &F : hostFeatures) {
+    features.AddFeature(F.first(), F.second);
+  }
+
+  auto relocModel = llvm::Reloc::PIC_;
+  auto codeModel = llvm::CodeModel::Small;
+  auto optLevel = llvm::CodeGenOptLevel::Default;
 
   llvm::TargetOptions opt;
+
   auto targetMachine = target->createTargetMachine(
-      llvm::Triple{targetTriple}, CPU, features, opt, llvm::Reloc::PIC_);
+      llvm::Triple{targetTriple}, CPU, features.getString(), opt, relocModel,
+      codeModel, optLevel);
 
   module.setDataLayout(targetMachine->createDataLayout());
 
