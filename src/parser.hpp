@@ -13,11 +13,10 @@ struct Parser {
   Parser(Tokenizer t);
 
   Token peek();
-
   Token advance();
-
   Token expect(TokenKind kind, std::string_view error);
 
+  /* Expressions */
   Ast::Expr expression();
   Ast::Expr assignment();
   Ast::Expr logical();
@@ -27,6 +26,7 @@ struct Parser {
   Ast::Expr factor();
   Ast::Expr primary();
 
+  /* Statements */
   Ast::Stmt statement();
   Ast::Stmt let();
   Ast::Stmt ifStatement();
@@ -35,16 +35,17 @@ struct Parser {
   Ast::Stmt returnStatement();
   Ast::Stmt expressionStatement();
 
+  /* Declarations */
   Ast::Decl declaration();
   Ast::Decl function();
 
+  /* Program (Entry) */
   std::vector<Ast::Decl> program();
 
+  /* Helpers */
   Ast::Block block();
-
   Ast::Parameter parameter();
   std::vector<Ast::Parameter> parameters();
-
   std::vector<Ast::Expr> arguments();
 
   Ast::Operator tokenToOperator(TokenKind token);

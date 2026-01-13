@@ -66,8 +66,16 @@ void printExpr(const T &expr, std::string_view filename, std::string prefix,
           type = std::optional{node.type};
         }
 
-        if constexpr (std::is_same_v<K, Ast::Number> ||
-                      std::is_same_v<K, TAst::Number>) {
+        if constexpr (std::is_same_v<K, Ast::String> ||
+                      std::is_same_v<K, TAst::String>) {
+          printHeader(219, std::format("String {}", node.value), type, filename,
+                      node.span);
+        } else if constexpr (std::is_same_v<K, Ast::Char> ||
+                             std::is_same_v<K, TAst::Char>) {
+          printHeader(219, std::format("Char {}", node.value), type, filename,
+                      node.span);
+        } else if constexpr (std::is_same_v<K, Ast::Number> ||
+                             std::is_same_v<K, TAst::Number>) {
           printHeader(219, "Number " + std::to_string(node.value), type,
                       filename, node.span);
         } else if constexpr (std::is_same_v<K, Ast::Boolean> ||

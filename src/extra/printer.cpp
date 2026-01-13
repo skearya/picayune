@@ -92,7 +92,9 @@ const char *operatorName(const Ast::Operator &op) {
 }
 
 const char *typeName(const TAst::Type &type) {
-  return std::visit(overloads{[](const TAst::TInt &) { return "Int"; },
+  return std::visit(overloads{[](const TAst::TString &) { return "String"; },
+                              [](const TAst::TChar &) { return "Char"; },
+                              [](const TAst::TInt &) { return "Int"; },
                               [](const TAst::TBoolean &) { return "Boolean"; },
                               [](const TAst::TVoid &) { return "Void"; }},
                     type);

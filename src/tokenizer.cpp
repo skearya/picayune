@@ -3,6 +3,7 @@
 #include "token.hpp"
 #include <charconv>
 #include <cstdint>
+#include <print>
 #include <stdexcept>
 #include <string_view>
 
@@ -50,11 +51,10 @@ Token Tokenizer::token() {
 
   start = current;
 
-  TokenKind kind;
-  TokenValue value;
+  TokenKind kind{};
+  TokenValue value{};
 
-  char c = next();
-  switch (c) {
+  switch (char c = next(); c) {
   case '+':
     kind = TokenKind::Plus;
     break;
@@ -130,6 +130,42 @@ Token Tokenizer::token() {
   case ';':
     kind = TokenKind::Semi;
     break;
+  case '\'': {
+    kind = TokenKind::Char;
+
+    if (peek() == '\0') {
+      throw std::runtime_error("Expected character after '");
+    }
+
+    char data = next();
+
+    if (peek() == '\0') {
+      throw std::runtime_error("Expected ' after character");
+    }
+
+    next();
+
+    value = TokenValue{.character = data};
+    break;
+  }
+  case '"': {
+    kind = TokenKind::Str;
+
+    while (peek() != '"' && peek() != '\0') {
+      next();
+    }
+
+    auto data = src.substr(start + 1, current - start - 1);
+
+    if (peek() != '"') {
+      throw std::runtime_error("Expected \" after string");
+    }
+
+    next();
+
+    value = TokenValue{.string = data};
+    break;
+  }
   case '\0':
     kind = TokenKind::Eof;
     break;
@@ -141,9 +177,9 @@ Token Tokenizer::token() {
         next();
       }
 
-      std::string_view substring = src.substr(start, current - start);
-      int32_t intValue;
+      auto substring = src.substr(start, current - start);
 
+      int32_t intValue;
       auto result =
           std::from_chars(substring.begin(), substring.end(), intValue);
 

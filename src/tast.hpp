@@ -12,18 +12,22 @@
 
 namespace TAst {
 
+struct TString;
+struct TChar;
 struct TInt;
 struct TBoolean;
 struct TVoid;
 
-using Type = std::variant<TInt, TBoolean, TVoid>;
+using Type = std::variant<TString, TChar, TInt, TBoolean, TVoid>;
 
+struct TString {};
+struct TChar {};
 struct TInt {};
-
 struct TBoolean {};
-
 struct TVoid {};
 
+struct String;
+struct Char;
 struct Number;
 struct Boolean;
 struct Ident;
@@ -32,8 +36,18 @@ struct Call;
 struct Assign;
 struct Grouping;
 
-using Expr =
-    std::variant<Number, Boolean, Ident, Binary, Call, Assign, Grouping>;
+using Expr = std::variant<String, Char, Number, Boolean, Ident, Binary, Call,
+                          Assign, Grouping>;
+
+struct String {
+  Span span;
+  std::string_view value;
+};
+
+struct Char {
+  Span span;
+  char value;
+};
 
 struct Number {
   Span span;
@@ -144,7 +158,11 @@ template <typename T> Type getType(const T &arg) {
       [](const auto &node) -> Type {
         using K = std::decay_t<decltype(node)>;
 
-        if constexpr (std::is_same_v<K, Number>) {
+        if constexpr (std::is_same_v<K, String>) {
+          return TString{};
+        } else if constexpr (std::is_same_v<K, Char>) {
+          return TChar{};
+        } else if constexpr (std::is_same_v<K, Number>) {
           return TInt{};
         } else if constexpr (std::is_same_v<K, Boolean>) {
           return TBoolean{};

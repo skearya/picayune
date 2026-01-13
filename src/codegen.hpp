@@ -29,6 +29,8 @@ struct LLVMCodegen {
 
   llvm::Value *codegenExpr(const TAst::Expr &node);
 
+  llvm::Value *operator()(const TAst::String &node);
+  llvm::Value *operator()(const TAst::Char &node);
   llvm::Value *operator()(const TAst::Number &node);
   llvm::Value *operator()(const TAst::Boolean &node);
   llvm::Value *operator()(const TAst::Ident &node);

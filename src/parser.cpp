@@ -61,11 +61,13 @@ term: factor | factor ((PLUS | MINUS) factor)*
 factor: primary | primary ((STAR | SLASH) primary)*
 
 primary:
+  | STRING
+  | CHAR
   | INT
-  | IDENT
-  | IDENT LPAREN arguments? RPAREN
   | TRUE
   | FALSE
+  | IDENT
+  | IDENT LPAREN arguments? RPAREN
   | LPAREN expression RPAREN
 
 (* Helpers *)
@@ -208,18 +210,26 @@ Ast::Expr Parser::factor() {
 }
 
 Ast::Expr Parser::primary() {
-  if (peek().kind == TokenKind::Num) {
+  if (peek().kind == TokenKind::Str) {
+    Token str = advance();
+
+    return Ast::String{str.span, str.value.string};
+  } else if (peek().kind == TokenKind::Char) {
+    Token charr = advance();
+
+    return Ast::Char{charr.span, charr.value.character};
+  } else if (peek().kind == TokenKind::Num) {
     Token num = advance();
 
     return Ast::Number{num.span, num.value.integer};
   } else if (peek().kind == TokenKind::True) {
-    Token t = advance();
+    Token truee = advance();
 
-    return Ast::Boolean{t.span, true};
+    return Ast::Boolean{truee.span, true};
   } else if (peek().kind == TokenKind::False) {
-    Token f = advance();
+    Token falsee = advance();
 
-    return Ast::Boolean{f.span, false};
+    return Ast::Boolean{falsee.span, false};
   } else if (peek().kind == TokenKind::Ident) {
     Token ident = advance();
 
@@ -227,7 +237,6 @@ Ast::Expr Parser::primary() {
       advance();
 
       std::vector<Ast::Expr> args = arguments();
-
       Token end = expect(TokenKind::RParen, "Expected ')' after arguments");
 
       return Ast::Call{ident.span.extend(end.span),
@@ -239,7 +248,6 @@ Ast::Expr Parser::primary() {
     Token start = advance();
 
     Ast::Expr inner = expression();
-
     Token closing = expect(TokenKind::RParen, "Expected ')' after expression");
 
     return Ast::Grouping{start.span.extend(closing.span),
@@ -270,13 +278,10 @@ Ast::Stmt Parser::statement() {
 
 Ast::Stmt Parser::let() {
   Token start = expect(TokenKind::Let, "Expected 'let'");
-
   Token ident = expect(TokenKind::Ident, "Expected identifier after let");
-
   expect(TokenKind::Eq, "Expected '=' after identifier");
 
   Ast::Expr initializer = expression();
-
   Token closing = expect(TokenKind::Semi, "Expected ';' after expression");
 
   return Ast::Let{start.span.extend(closing.span),
@@ -285,11 +290,9 @@ Ast::Stmt Parser::let() {
 
 Ast::Stmt Parser::ifStatement() {
   Token start = expect(TokenKind::If, "Expected 'if'");
-
   expect(TokenKind::LParen, "Expected '(' after if");
 
   Ast::Expr cond = expression();
-
   expect(TokenKind::RParen, "Expected ')' after if condition");
 
   Ast::Stmt thenStmt = statement();
@@ -311,11 +314,9 @@ Ast::Stmt Parser::ifStatement() {
 
 Ast::Stmt Parser::whileStatement() {
   Token start = expect(TokenKind::While, "Expected 'while'");
-
   expect(TokenKind::LParen, "Expected '(' after while");
 
   Ast::Expr cond = expression();
-
   expect(TokenKind::RParen, "Expected ')' after while condition");
 
   Ast::Stmt body = statement();
@@ -329,7 +330,6 @@ Ast::Stmt Parser::whileStatement() {
 
 Ast::Stmt Parser::forStatement() {
   Token start = expect(TokenKind::For, "Expected 'for'");
-
   expect(TokenKind::LParen, "Expected '(' after for");
 
   Ast::Stmt init = statement();
@@ -341,11 +341,9 @@ Ast::Stmt Parser::forStatement() {
   }
 
   Ast::Expr condition = expression();
-
   expect(TokenKind::Semi, "Expected ';' after for loop condition");
 
   Ast::Expr update = expression();
-
   expect(TokenKind::RParen, "Expected ')' after for loop update expression");
 
   Ast::Stmt body = statement();
@@ -393,17 +391,13 @@ Ast::Decl Parser::declaration() {
 
 Ast::Decl Parser::function() {
   Token start = expect(TokenKind::Function, "Expected 'function'.");
-
   Token name = expect(TokenKind::Ident, "Expected function name");
-
   expect(TokenKind::LParen, "Expected '(' after function name");
 
   std::vector<Ast::Parameter> params = parameters();
 
   expect(TokenKind::RParen, "Expected ')' after function parameter");
-
   expect(TokenKind::Colon, "Expected ':' after function parameters");
-
   Token returnType =
       expect(TokenKind::Ident, "Expected function return type after colon");
 
@@ -440,9 +434,7 @@ Ast::Block Parser::block() {
 
 Ast::Parameter Parser::parameter() {
   Token ident = expect(TokenKind::Ident, "Expected parameter name");
-
   expect(TokenKind::Colon, "Expected colon after parameter name");
-
   Token type = expect(TokenKind::Ident, "Expected parameter type");
 
   return Ast::Parameter{ident.span.src(tokenizer.src),
@@ -457,7 +449,6 @@ std::vector<Ast::Parameter> Parser::parameters() {
 
     while (peek().kind == TokenKind::Comma) {
       advance();
-
       params.push_back(parameter());
     }
   }
@@ -473,7 +464,6 @@ std::vector<Ast::Expr> Parser::arguments() {
 
     while (peek().kind == TokenKind::Comma) {
       advance();
-
       args.push_back(expression());
     }
   }

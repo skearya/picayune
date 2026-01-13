@@ -25,6 +25,8 @@ enum struct Operator {
   And,
 };
 
+struct String;
+struct Char;
 struct Number;
 struct Boolean;
 struct Ident;
@@ -33,8 +35,18 @@ struct Call;
 struct Assign;
 struct Grouping;
 
-using Expr =
-    std::variant<Number, Boolean, Ident, Binary, Call, Assign, Grouping>;
+using Expr = std::variant<String, Char, Number, Boolean, Ident, Binary, Call,
+                          Assign, Grouping>;
+
+struct String {
+  Span span;
+  std::string_view value;
+};
+
+struct Char {
+  Span span;
+  char value;
+};
 
 struct Number {
   Span span;

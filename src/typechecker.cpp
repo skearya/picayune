@@ -73,6 +73,14 @@ TAst::Expr TypeChecker::checkExpr(const Ast::Expr &node) {
   return std::visit(*this, node);
 }
 
+TAst::Expr TypeChecker::operator()(const Ast::String &node) {
+  return TAst::String{node.span, node.value};
+}
+
+TAst::Expr TypeChecker::operator()(const Ast::Char &node) {
+  return TAst::Char{node.span, node.value};
+}
+
 TAst::Expr TypeChecker::operator()(const Ast::Number &node) {
   return TAst::Number{node.span, node.value};
 }
@@ -344,8 +352,13 @@ TypeChecker::lookupFunction(std::string_view name) {
   return std::nullopt;
 }
 
+// TODO: User defined types
 TAst::Type identToType(std::string_view ident) {
-  if (ident == "int") {
+  if (ident == "string") {
+    return TAst::TString{};
+  } else if (ident == "char") {
+    return TAst::TChar{};
+  } else if (ident == "int") {
     return TAst::TInt{};
   } else if (ident == "bool") {
     return TAst::TBoolean{};

@@ -2,10 +2,9 @@
 
 #include "span.hpp"
 #include <cstdint>
+#include <string_view>
 
 enum struct TokenKind {
-  Num,
-  Ident,
   Plus,
   Minus,
   Star,
@@ -39,10 +38,17 @@ enum struct TokenKind {
   For,
   Return,
 
+  Char,
+  Str,
+  Num,
+  Ident,
+
   Eof
 };
 
 union TokenValue {
+  char character;
+  std::string_view string;
   int32_t integer;
 };
 

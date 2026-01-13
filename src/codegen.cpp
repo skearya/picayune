@@ -67,12 +67,9 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
     std::visit(
         overloads{[this](const TAst::Function &node) {
           auto function = functions.at(node.name);
-
           auto block = llvm::BasicBlock::Create(context, "entry", function);
 
           builder.SetInsertPoint(block);
-
-          values.clear();
 
           for (auto &arg : function->args()) {
             auto alloca =
@@ -92,6 +89,8 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
             builder.CreateRetVoid();
           }
 
+          values.clear();
+
           if (llvm::verifyFunction(*function, &llvm::errs())) {
             std::println("WARNING: Function {} failed verification ^^^",
                          node.name);
@@ -100,12 +99,12 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
             std::println("Function {} verified with no errors.", node.name);
             std::println();
           }
-
-          function->print(llvm::errs());
-          std::println();
         }},
         decl);
   }
+
+  module.print(llvm::errs(), nullptr);
+  std::println();
 
   if (llvm::verifyModule(module, &llvm::errs())) {
     std::println("WARNING: Module failed verification ^^^");
@@ -179,6 +178,15 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
 
 llvm::Value *LLVMCodegen::codegenExpr(const TAst::Expr &node) {
   return std::visit(*this, node);
+}
+
+llvm::Value *LLVMCodegen::operator()(const TAst::String &node) {
+  return builder.CreateGlobalString(node.value);
+}
+
+llvm::Value *LLVMCodegen::operator()(const TAst::Char &node) {
+  return llvm::ConstantInt::get(llvm::Type::getInt8Ty(context), node.value,
+                                true);
 }
 
 llvm::Value *LLVMCodegen::operator()(const TAst::Number &node) {
@@ -403,6 +411,12 @@ void LLVMCodegen::codegenBlock(const TAst::Block &node) {
 
 llvm::Type *LLVMCodegen::convertType(const TAst::Type &type) {
   return std::visit(overloads{
+                        [this](const TAst::TString &) -> llvm::Type * {
+                          return llvm::PointerType::getUnqual(context);
+                        },
+                        [this](const TAst::TChar &) -> llvm::Type * {
+                          return llvm::Type::getInt8Ty(context);
+                        },
                         [this](const TAst::TInt &) -> llvm::Type * {
                           return llvm::Type::getInt32Ty(context);
                         },

@@ -28,6 +28,8 @@ struct TypeChecker {
 
   TAst::Expr checkExpr(const Ast::Expr &node);
 
+  TAst::Expr operator()(const Ast::String &node);
+  TAst::Expr operator()(const Ast::Char &node);
   TAst::Expr operator()(const Ast::Number &node);
   TAst::Expr operator()(const Ast::Boolean &node);
   TAst::Expr operator()(const Ast::Ident &node);
