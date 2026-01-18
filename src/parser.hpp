@@ -38,6 +38,7 @@ struct Parser {
   /* Declarations */
   Ast::Decl declaration();
   Ast::Decl function();
+  Ast::Decl structDeclaration();
 
   /* Program (Entry) */
   std::vector<Ast::Decl> program();

@@ -17,9 +17,11 @@ program: declaration* EOF
 
 (* Declarations *)
 
-declaration: function
+declaration: function | struct
 
-function: FUNCTION name LPAREN params? RPAREN COLON type block
+function: FUNCTION name LPAREN parameters? RPAREN COLON type block
+
+struct: STRUCT name LPAREN parameters? RPAREN
 
 (* Statements *)
 
@@ -384,13 +386,15 @@ Ast::Decl Parser::declaration() {
   switch (peek().kind) {
   case TokenKind::Function:
     return function();
+  case TokenKind::Struct:
+    return structDeclaration();
   default:
     throw std::runtime_error("Expected declaration.");
   }
 }
 
 Ast::Decl Parser::function() {
-  Token start = expect(TokenKind::Function, "Expected 'function'.");
+  Token start = expect(TokenKind::Function, "Expected 'function'");
   Token name = expect(TokenKind::Ident, "Expected function name");
   expect(TokenKind::LParen, "Expected '(' after function name");
 
@@ -406,6 +410,22 @@ Ast::Decl Parser::function() {
   return Ast::Function{start.span.extend(body.span),
                        name.span.src(tokenizer.src), std::move(params),
                        returnType.span.src(tokenizer.src), std::move(body)};
+}
+
+Ast::Decl Parser::structDeclaration() {
+  Token start = expect(TokenKind::Struct, "Expected 'struct'");
+  Token name = expect(TokenKind::Ident, "Expected struct name");
+  expect(TokenKind::LBrace, "Expected '{' after struct name");
+
+  std::vector<Ast::Parameter> fields = parameters();
+
+  Token end = expect(TokenKind::RBrace, "Expected '}' after struct fields");
+
+  return Ast::Struct{
+      start.span.extend(end.span),
+      name.span.src(tokenizer.src),
+      std::move(fields),
+  };
 }
 
 std::vector<Ast::Decl> Parser::program() {

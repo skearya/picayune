@@ -48,7 +48,7 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
                  }
 
                  auto functiontype = llvm::FunctionType::get(
-                     convertType(node.type), functionparams, false);
+                     convertType(node.returnType), functionparams, false);
 
                  auto function = llvm::Function::Create(
                      functiontype, llvm::Function::ExternalLinkage, node.name,
@@ -84,7 +84,7 @@ void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
 
           // If we have a `void` function that doesn't have an explicit return,
           // add it.
-          if (node.type.index() == TAst::Type{TAst::TVoid{}}.index() &&
+          if (node.returnType.index() == TAst::Type{TAst::TVoid{}}.index() &&
               !function->back().getTerminator()) {
             builder.CreateRetVoid();
           }

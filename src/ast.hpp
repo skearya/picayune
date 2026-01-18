@@ -140,19 +140,26 @@ struct ExprStmt {
 };
 
 struct Function;
+struct Struct;
 
-using Decl = std::variant<Function>;
+using Decl = std::variant<Function, Struct>;
 
 struct Parameter {
   std::string_view name;
   std::string_view type;
 };
 
+struct Struct {
+  Span span;
+  std::string_view name;
+  std::vector<Parameter> fields;
+};
+
 struct Function {
   Span span;
   std::string_view name;
   std::vector<Parameter> params;
-  std::string_view type;
+  std::string_view returnType;
   Block body;
 };
 

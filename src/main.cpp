@@ -1,4 +1,4 @@
-#include "codegen.hpp"
+// #include "codegen.hpp"
 #include "extra/printer.hpp"
 #include "parser.hpp"
 #include "tokenizer.hpp"
@@ -23,16 +23,18 @@ int main(int argc, char **argv) {
 
   auto source = buffer.str();
 
-  std::vector<Ast::Decl> root =
-      Parser{Tokenizer{std::string_view{source}}}.program();
+  auto tokenizer = Tokenizer{std::string_view{source}};
+  auto parser = Parser{tokenizer};
+  auto root = parser.program();
 
-  Printer::printProgram(root, "example.lang");
+  Printer{filename}.printProgram(root);
   std::println();
 
-  std::vector<TAst::Decl> troot = TypeChecker{}.check(root);
+  auto typechecker = TypeChecker{};
+  auto troot = typechecker.check(root);
 
-  Printer::printProgram(troot, "example.lang");
+  Printer{filename, typechecker.typeArena}.printProgram(troot);
   std::println();
 
-  LLVMCodegen{}.codegen(troot);
+  // LLVMCodegen{}.codegen(troot);
 }

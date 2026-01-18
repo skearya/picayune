@@ -6,12 +6,17 @@
 #include <format>
 #include <optional>
 #include <print>
+#include <span>
 #include <string_view>
 #include <variant>
 
-namespace Printer {
+Printer::Printer(std::string_view filename) : filename{filename}, typeArena{} {}
 
-void startPrint(std::string_view prefix, std::string_view label, bool isLeft) {
+Printer::Printer(std::string_view filename, std::span<TAst::Type> typeArena)
+    : filename{filename}, typeArena{typeArena} {}
+
+void Printer::startPrint(std::string_view prefix, std::string_view label,
+                         bool isLeft) {
   std::print("\033[90m");
 
   if (prefix.empty()) {
@@ -28,20 +33,20 @@ void startPrint(std::string_view prefix, std::string_view label, bool isLeft) {
   std::print("\033[39m");
 }
 
-void printHeader(uint8_t color, std::string_view label,
-                 std::optional<TAst::Type> type, std::string_view filename,
-                 const Span &span) {
+void Printer::printHeader(uint8_t color, std::string_view label,
+                          std::optional<TAst::TypeID> typeID,
+                          const Span &span) {
   std::print("\033[38:5:{}m", color);
   std::print("{} ", label);
   std::print("\033[39m");
 
-  if (type.has_value()) {
+  if (typeID.has_value()) {
     std::print("\033[90m");
     std::print(": ");
     std::print("\033[39m");
 
     std::print("\033[38:5:6m");
-    std::print("{} ", typeName(type.value()));
+    std::print("{} ", typeName(typeID.value()));
     std::print("\033[39m");
   }
 
@@ -58,11 +63,11 @@ void printHeader(uint8_t color, std::string_view label,
   std::println();
 }
 
-std::string nextPrefix(std::string prefix, bool isLeft) {
+std::string Printer::nextPrefix(std::string prefix, bool isLeft) {
   return prefix + (isLeft ? "│   " : "    ");
 }
 
-const char *operatorName(const Ast::Operator &op) {
+std::string_view Printer::operatorName(const Ast::Operator &op) {
   switch (op) {
   case Ast::Operator::Add:
     return "Add";
@@ -91,13 +96,18 @@ const char *operatorName(const Ast::Operator &op) {
   }
 }
 
-const char *typeName(const TAst::Type &type) {
-  return std::visit(overloads{[](const TAst::TString &) { return "String"; },
-                              [](const TAst::TChar &) { return "Char"; },
-                              [](const TAst::TInt &) { return "Int"; },
-                              [](const TAst::TBoolean &) { return "Boolean"; },
-                              [](const TAst::TVoid &) { return "Void"; }},
-                    type);
+std::string_view Printer::typeName(const TAst::TypeID &typeID) {
+  return std::visit(
+      overloads{
+          [](const TAst::TVoid &) -> std::string_view { return "Void"; },
+          [](const TAst::TString &) -> std::string_view { return "String"; },
+          [](const TAst::TChar &) -> std::string_view { return "Char"; },
+          [](const TAst::TInt &) -> std::string_view { return "Int"; },
+          [](const TAst::TBoolean &) -> std::string_view { return "Boolean"; },
+          [](const TAst::TStruct &structt) { return structt.name; },
+          [](const TAst::TFunction &) -> std::string_view {
+            return "Function";
+          },
+      },
+      typeArena[typeID.id]);
 }
-
-} // namespace Printer

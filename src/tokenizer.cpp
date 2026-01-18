@@ -3,7 +3,6 @@
 #include "token.hpp"
 #include <charconv>
 #include <cstdint>
-#include <print>
 #include <stdexcept>
 #include <string_view>
 
@@ -199,6 +198,8 @@ Token Tokenizer::token() {
         kind = TokenKind::True;
       } else if (matched == "false") {
         kind = TokenKind::False;
+      } else if (matched == "struct") {
+        kind = TokenKind::Struct;
       } else if (matched == "function") {
         kind = TokenKind::Function;
       } else if (matched == "let") {

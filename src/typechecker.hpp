@@ -7,22 +7,21 @@
 #include <unordered_map>
 #include <vector>
 
-struct PartialFunction;
-
-using PartialDecl = std::variant<PartialFunction>;
-
-struct PartialFunction {
-  Span span;
-  TAst::Type type;
-  std::string_view name;
-  std::vector<TAst::Parameter> params;
-  const Ast::Block &body;
-};
-
 struct TypeChecker {
-  std::vector<PartialDecl> partialDeclarations;
-  std::vector<std::unordered_map<std::string_view, TAst::Type>> environments;
-  const PartialFunction *currentFunction;
+  std::vector<TAst::Type> typeArena;
+  std::unordered_map<std::string_view, TAst::TypeID> types;
+  std::unordered_map<std::string_view, TAst::TypeID> functions;
+  std::vector<std::unordered_map<std::string_view, TAst::TypeID>> environments;
+
+  const TAst::TFunction *currentFunction;
+
+  TAst::TypeID voidTypeID;
+  TAst::TypeID stringTypeID;
+  TAst::TypeID charTypeID;
+  TAst::TypeID intTypeID;
+  TAst::TypeID booleanTypeID;
+
+  TypeChecker();
 
   std::vector<TAst::Decl> check(const std::vector<Ast::Decl> &program);
 
@@ -50,11 +49,10 @@ struct TypeChecker {
 
   TAst::Block checkBlock(const Ast::Block &node);
 
-  std::optional<TAst::Type> lookup(std::string_view name);
-  std::optional<const PartialFunction *> lookupFunction(std::string_view name);
+  std::optional<TAst::TypeID> lookupVar(std::string_view name);
+  std::optional<TAst::TypeID> lookupType(std::string_view ident);
+  TAst::TypeID internType(TAst::Type type);
 };
-
-TAst::Type identToType(std::string_view ident);
 
 bool doesBlockReturn(const TAst::Block &node);
 bool doesReturn(const TAst::Stmt &node);
