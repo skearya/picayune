@@ -29,14 +29,15 @@ struct String;
 struct Char;
 struct Number;
 struct Boolean;
+struct StructInit;
 struct Ident;
 struct Binary;
 struct Call;
 struct Assign;
 struct Grouping;
 
-using Expr = std::variant<String, Char, Number, Boolean, Ident, Binary, Call,
-                          Assign, Grouping>;
+using Expr = std::variant<String, Char, Number, Boolean, StructInit, Ident,
+                          Binary, Call, Assign, Grouping>;
 
 struct String {
   Span span;
@@ -68,6 +69,17 @@ struct Binary {
   std::unique_ptr<Expr> left;
   Operator op;
   std::unique_ptr<Expr> right;
+};
+
+struct FieldInit {
+  std::string_view name;
+  std::unique_ptr<Expr> value;
+};
+
+struct StructInit {
+  Span span;
+  std::string_view name;
+  std::vector<FieldInit> fields;
 };
 
 struct Call {
@@ -144,7 +156,7 @@ struct Struct;
 
 using Decl = std::variant<Function, Struct>;
 
-struct Parameter {
+struct Field {
   std::string_view name;
   std::string_view type;
 };
@@ -152,7 +164,12 @@ struct Parameter {
 struct Struct {
   Span span;
   std::string_view name;
-  std::vector<Parameter> fields;
+  std::vector<Field> fields;
+};
+
+struct Parameter {
+  std::string_view name;
+  std::string_view type;
 };
 
 struct Function {

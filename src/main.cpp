@@ -1,4 +1,4 @@
-// #include "codegen.hpp"
+#include "codegen.hpp"
 #include "extra/printer.hpp"
 #include "parser.hpp"
 #include "tokenizer.hpp"

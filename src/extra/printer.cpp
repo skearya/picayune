@@ -67,7 +67,7 @@ std::string Printer::nextPrefix(std::string prefix, bool isLeft) {
   return prefix + (isLeft ? "│   " : "    ");
 }
 
-std::string_view Printer::operatorName(const Ast::Operator &op) {
+std::string_view Printer::operatorName(Ast::Operator op) {
   switch (op) {
   case Ast::Operator::Add:
     return "Add";
@@ -96,7 +96,7 @@ std::string_view Printer::operatorName(const Ast::Operator &op) {
   }
 }
 
-std::string_view Printer::typeName(const TAst::TypeID &typeID) {
+std::string_view Printer::typeName(TAst::TypeID typeID) {
   return std::visit(
       overloads{
           [](const TAst::TVoid &) -> std::string_view { return "Void"; },

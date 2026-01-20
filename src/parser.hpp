@@ -44,10 +44,14 @@ struct Parser {
   std::vector<Ast::Decl> program();
 
   /* Helpers */
-  Ast::Block block();
+  Ast::Field field();
+  std::vector<Ast::Field> fields();
+  Ast::FieldInit fieldInit();
+  std::vector<Ast::FieldInit> fieldInits();
   Ast::Parameter parameter();
   std::vector<Ast::Parameter> parameters();
   std::vector<Ast::Expr> arguments();
+  Ast::Block block();
 
   Ast::Operator tokenToOperator(TokenKind token);
 };

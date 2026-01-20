@@ -7,7 +7,6 @@
 #include <memory>
 #include <optional>
 #include <string_view>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -17,13 +16,6 @@ struct TypeID {
   uint32_t id;
 
   bool operator==(const TypeID &) const = default;
-};
-
-struct Parameter {
-  TypeID type;
-  std::string_view name;
-
-  bool operator==(const Parameter &) const = default;
 };
 
 struct TVoid;
@@ -57,11 +49,25 @@ struct TBoolean {
   bool operator==(const TBoolean &) const = default;
 };
 
+struct Field {
+  TypeID type;
+  std::string_view name;
+
+  bool operator==(const Field &) const = default;
+};
+
 struct TStruct {
   std::string_view name;
-  std::unordered_map<std::string_view, TypeID> fields;
+  std::vector<Field> fields;
 
   bool operator==(const TStruct &) const = default;
+};
+
+struct Parameter {
+  TypeID type;
+  std::string_view name;
+
+  bool operator==(const Parameter &) const = default;
 };
 
 struct TFunction {
@@ -75,14 +81,15 @@ struct String;
 struct Char;
 struct Number;
 struct Boolean;
+struct StructInit;
 struct Ident;
 struct Binary;
 struct Call;
 struct Assign;
 struct Grouping;
 
-using Expr = std::variant<String, Char, Number, Boolean, Ident, Binary, Call,
-                          Assign, Grouping>;
+using Expr = std::variant<String, Char, Number, Boolean, StructInit, Ident,
+                          Binary, Call, Assign, Grouping>;
 
 struct String {
   TypeID type;
@@ -106,6 +113,18 @@ struct Boolean {
   TypeID type;
   Span span;
   bool value;
+};
+
+struct FieldInit {
+  std::string_view name;
+  std::unique_ptr<Expr> value;
+};
+
+struct StructInit {
+  TypeID type;
+  Span span;
+  std::string_view name;
+  std::vector<FieldInit> fields;
 };
 
 struct Ident {
@@ -193,14 +212,14 @@ using Decl = std::variant<Struct, Function>;
 struct Struct {
   Span span;
   std::string_view name;
-  std::vector<Parameter> fields;
+  std::vector<Field> fields;
 };
 
 struct Function {
   Span span;
-  TypeID returnType;
   std::string_view name;
   std::vector<Parameter> params;
+  TypeID returnType;
   Block body;
 };
 

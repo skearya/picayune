@@ -2,7 +2,9 @@
 #include "ast.hpp"
 #include "tast.hpp"
 #include "utils.hpp"
+#include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <print>
@@ -33,18 +35,15 @@ TypeChecker::check(const std::vector<Ast::Decl> &program) {
 
   for (const auto &decl : program) {
     if (const auto *structt = std::get_if<Ast::Struct>(&decl)) {
-      types.insert({structt->name, internType(TAst::TStruct{})});
+      auto typeId = internType(TAst::TStruct{structt->name, {}});
+
+      types.insert({structt->name, typeId});
     }
   }
 
   for (const auto &decl : program) {
     if (const auto *structt = std::get_if<Ast::Struct>(&decl)) {
-      auto &type = typeArena[types.at(structt->name).id];
-      auto &structType = std::get<TAst::TStruct>(type);
-
-      structType.name = structt->name;
-
-      std::vector<TAst::Parameter> fields;
+      std::vector<TAst::Field> fields;
 
       for (const auto &param : structt->fields) {
         auto typeId = lookupType(param.type);
@@ -53,9 +52,14 @@ TypeChecker::check(const std::vector<Ast::Decl> &program) {
           throw std::runtime_error("Field type is not defined");
         }
 
-        fields.push_back(TAst::Parameter{typeId.value(), param.name});
-        structType.fields.insert({param.name, typeId.value()});
+        fields.push_back(TAst::Field{typeId.value(), param.name});
       }
+
+      auto &type = typeArena[types.at(structt->name).id];
+      auto &structType = std::get<TAst::TStruct>(type);
+
+      structType.name = structt->name;
+      structType.fields = fields;
 
       decls.push_back(
           TAst::Struct{structt->span, structt->name, std::move(fields)});
@@ -112,9 +116,9 @@ TypeChecker::check(const std::vector<Ast::Decl> &program) {
             "Function does not return value in all branches");
       }
 
-      decls.push_back(TAst::Function{function->span, functionType.returnType,
-                                     function->name, functionType.parameters,
-                                     std::move(block)});
+      decls.push_back(TAst::Function{
+          function->span, function->name, functionType.parameters,
+          functionType.returnType, std::move(block)});
     }
   }
 
@@ -139,6 +143,46 @@ TAst::Expr TypeChecker::operator()(const Ast::Number &node) {
 
 TAst::Expr TypeChecker::operator()(const Ast::Boolean &node) {
   return TAst::Boolean{booleanTypeID, node.span, node.value};
+}
+
+TAst::Expr TypeChecker::operator()(const Ast::StructInit &node) {
+  auto typeId = lookupType(node.name);
+
+  if (!typeId.has_value()) {
+    throw std::runtime_error("Struct does not exist");
+  }
+
+  auto type = typeArena[typeId.value().id];
+
+  if (auto *structType = std::get_if<TAst::TStruct>(&type)) {
+    std::vector<TAst::FieldInit> fieldInits;
+
+    for (const auto &fieldInit : node.fields) {
+      auto structField = std::ranges::find_if(
+          structType->fields, [&](const auto &structField) {
+            return fieldInit.name == structField.name;
+          });
+
+      if (structField == std::end(structType->fields)) {
+        throw std::runtime_error("Struct field does not exist");
+      }
+
+      auto fieldValue = checkExpr(*fieldInit.value);
+      auto fieldValueTypeId = getTypeID(fieldValue);
+
+      if (fieldValueTypeId == structField->type) {
+        fieldInits.emplace_back(fieldInit.name, std::make_unique<TAst::Expr>(
+                                                    std::move(fieldValue)));
+      } else {
+        throw std::runtime_error("Mismatched struct field type");
+      }
+    }
+
+    return TAst::StructInit{typeId.value(), node.span, node.name,
+                            std::move(fieldInits)};
+  } else {
+    throw std::runtime_error("Type is not a struct");
+  }
 }
 
 TAst::Expr TypeChecker::operator()(const Ast::Ident &node) {
