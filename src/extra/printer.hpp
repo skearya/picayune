@@ -23,6 +23,8 @@ struct Printer {
   void startPrint(std::string_view prefix, std::string_view label, bool isLeft);
   void printHeader(uint8_t color, std::string_view label,
                    std::optional<TAst::TypeID> typeID, const Span &span);
+  void printStructField(std::string_view label,
+                        std::variant<std::string_view, TAst::TypeID> typeID);
 
   std::string nextPrefix(std::string prefix, bool isLeft);
   std::string_view operatorName(Ast::Operator op);
@@ -248,12 +250,10 @@ struct Printer {
 
               if constexpr (std::is_same_v<K, Ast::Struct>) {
                 startPrint(next, "", i != node.fields.size() - 1);
-                printHeader(colors[0],
-                            std::format("{}: {}", param.name, param.type),
-                            std::nullopt, node.span);
+                printStructField(param.name, param.type);
               } else {
                 startPrint(next, "", i != node.fields.size() - 1);
-                printHeader(colors[0], param.name, param.type, node.span);
+                printStructField(param.name, param.type);
               }
             }
           } else {

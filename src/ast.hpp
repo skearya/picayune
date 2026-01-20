@@ -154,7 +154,7 @@ struct ExprStmt {
 struct Function;
 struct Struct;
 
-using Decl = std::variant<Function, Struct>;
+using Decl = std::variant<Struct, Function>;
 
 struct Field {
   std::string_view name;

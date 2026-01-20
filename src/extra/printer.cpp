@@ -37,21 +37,21 @@ void Printer::printHeader(uint8_t color, std::string_view label,
                           std::optional<TAst::TypeID> typeID,
                           const Span &span) {
   std::print("\033[38:5:{}m", color);
-  std::print("{} ", label);
+  std::print("{}", label);
   std::print("\033[39m");
 
   if (typeID.has_value()) {
     std::print("\033[90m");
-    std::print(": ");
+    std::print(" : ");
     std::print("\033[39m");
 
     std::print("\033[38:5:6m");
-    std::print("{} ", typeName(typeID.value()));
+    std::print("{}", typeName(typeID.value()));
     std::print("\033[39m");
   }
 
   std::print("\033[90m");
-  std::print("- ");
+  std::print(" - ");
   std::print("\033[39m");
 
   std::print("\033[90m");
@@ -59,6 +59,28 @@ void Printer::printHeader(uint8_t color, std::string_view label,
   std::print("[{}:{}:{}]", filename, span.line, span.start + 1);
   std::print("\033[23m");
   std::print("\033[39m");
+
+  std::println();
+}
+
+void Printer::printStructField(
+    std::string_view label,
+    std::variant<std::string_view, TAst::TypeID> value) {
+  std::print("\033[39m");
+  std::print("{}", label);
+
+  std::print("\033[90m");
+  std::print(" : ");
+  std::print("\033[39m");
+
+  std::visit(
+      overloads{[](const std::string_view &name) { std::print("{}", name); },
+                [this](const TAst::TypeID &typeID) {
+                  std::print("\033[38:5:6m");
+                  std::print("{}", typeName(typeID));
+                  std::print("\033[39m");
+                }},
+      value);
 
   std::println();
 }
