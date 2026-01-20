@@ -24,6 +24,7 @@ struct Parser {
   Ast::Expr comparison();
   Ast::Expr term();
   Ast::Expr factor();
+  Ast::Expr call();
   Ast::Expr primary();
 
   /* Statements */

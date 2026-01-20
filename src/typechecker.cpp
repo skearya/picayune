@@ -186,13 +186,13 @@ TAst::Expr TypeChecker::operator()(const Ast::StructInit &node) {
 }
 
 TAst::Expr TypeChecker::operator()(const Ast::Ident &node) {
-  auto type = lookupVar(node.name);
+  auto typeId = lookupVar(node.name);
 
-  if (!type.has_value()) {
+  if (!typeId.has_value()) {
     throw std::runtime_error("Identifier is not defined");
   }
 
-  return TAst::Ident{*type, node.span, node.name};
+  return TAst::Ident{typeId.value(), node.span, node.name};
 }
 
 TAst::Expr TypeChecker::operator()(const Ast::Binary &node) {
@@ -252,35 +252,37 @@ TAst::Expr TypeChecker::operator()(const Ast::Binary &node) {
 }
 
 TAst::Expr TypeChecker::operator()(const Ast::Call &node) {
-  if (!functions.contains(node.function)) {
-    throw std::runtime_error("Tried to call undefined function");
-  }
+  auto callee = checkExpr(*node.function);
+  auto calleeTypeId = getTypeID(callee);
+  auto calleeType = typeArena[calleeTypeId.id];
 
-  auto functionTypeId = typeArena[functions.at(node.function).id];
-  auto functionType = std::get<TAst::TFunction>(functionTypeId);
-
-  if (node.arguments.size() != functionType.parameters.size()) {
-    throw std::runtime_error("Function call arity mismatch");
-  }
-
-  std::vector<TAst::Expr> arguments;
-
-  for (size_t i = 0; i < functionType.parameters.size(); i++) {
-    auto arg = checkExpr(node.arguments.at(i));
-    auto param = functionType.parameters.at(i);
-
-    auto argTypeId = getTypeID(arg);
-    auto paramTypeId = param.type;
-
-    if (argTypeId != paramTypeId) {
-      throw std::runtime_error("Function call argument type mismatch");
+  if (const auto *functionType = std::get_if<TAst::TFunction>(&calleeType)) {
+    if (node.arguments.size() != functionType->parameters.size()) {
+      throw std::runtime_error("Function call arity mismatch");
     }
 
-    arguments.push_back(std::move(arg));
-  }
+    std::vector<TAst::Expr> arguments;
 
-  return TAst::Call{functionType.returnType, node.span, node.function,
-                    std::move(arguments)};
+    for (size_t i = 0; i < functionType->parameters.size(); i++) {
+      auto arg = checkExpr(node.arguments.at(i));
+      auto param = functionType->parameters.at(i);
+
+      auto argTypeId = getTypeID(arg);
+      auto paramTypeId = param.type;
+
+      if (argTypeId != paramTypeId) {
+        throw std::runtime_error("Function call argument type mismatch");
+      }
+
+      arguments.push_back(std::move(arg));
+    }
+
+    return TAst::Call{functionType->returnType, node.span,
+                      std::make_unique<TAst::Expr>(std::move(callee)),
+                      std::move(arguments)};
+  } else {
+    throw std::runtime_error("Called non-function type");
+  }
 }
 
 TAst::Expr TypeChecker::operator()(const Ast::Assign &node) {
@@ -432,6 +434,18 @@ std::optional<TAst::TypeID> TypeChecker::lookupVar(std::string_view name) {
     }
   }
 
+  if (functions.contains(name)) {
+    return functions.at(name);
+  }
+
+  return std::nullopt;
+}
+
+std::optional<TAst::TypeID> TypeChecker::lookupType(std::string_view ident) {
+  if (types.contains(ident)) {
+    return types.at(ident);
+  }
+
   return std::nullopt;
 }
 
@@ -445,14 +459,6 @@ TAst::TypeID TypeChecker::internType(TAst::Type type) {
   typeArena.push_back(std::move(type));
 
   return TAst::TypeID{static_cast<uint32_t>(typeArena.size() - 1)};
-}
-
-std::optional<TAst::TypeID> TypeChecker::lookupType(std::string_view ident) {
-  if (types.contains(ident)) {
-    return types.at(ident);
-  }
-
-  return std::nullopt;
 }
 
 bool doesBlockReturn(const TAst::Block &node) {

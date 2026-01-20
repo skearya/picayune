@@ -60,7 +60,9 @@ comparison: term | term ((LT | LTEQ | GT | GTEQ) term)*
 
 term: factor | factor ((PLUS | MINUS) factor)*
 
-factor: primary | primary ((STAR | SLASH) primary)*
+factor: call | call ((STAR | SLASH) call)*
+
+call: primary | primary (LPAREN arguments? RPAREN)*
 
 primary:
   | STRING
@@ -69,7 +71,6 @@ primary:
   | TRUE
   | FALSE
   | IDENT LBRACE literal-fields? RBRACE
-  | IDENT LPAREN arguments? RPAREN
   | LPAREN expression RPAREN
 
 (* Helpers *)
@@ -199,11 +200,11 @@ Ast::Expr Parser::term() {
 }
 
 Ast::Expr Parser::factor() {
-  Ast::Expr lhs = primary();
+  Ast::Expr lhs = call();
 
   while (peek().kind == TokenKind::Star || peek().kind == TokenKind::Slash) {
     Token op = advance();
-    Ast::Expr rhs = factor();
+    Ast::Expr rhs = call();
 
     lhs = Ast::Binary{
         getSpan(lhs).extend(getSpan(rhs)),
@@ -211,6 +212,23 @@ Ast::Expr Parser::factor() {
         tokenToOperator(op.kind),
         std::make_unique<Ast::Expr>(std::move(rhs)),
     };
+  }
+
+  return lhs;
+}
+
+Ast::Expr Parser::call() {
+  Ast::Expr lhs = primary();
+
+  while (peek().kind == TokenKind::LParen) {
+    advance();
+
+    std::vector<Ast::Expr> args = arguments();
+    Token end = expect(TokenKind::RParen, "Expected ')' after arguments");
+
+    lhs =
+        Ast::Call{getSpan(lhs).extend(end.span),
+                  std::make_unique<Ast::Expr>(std::move(lhs)), std::move(args)};
   }
 
   return lhs;
@@ -249,14 +267,6 @@ Ast::Expr Parser::primary() {
       return Ast::StructInit{ident.span.extend(end.span),
                              ident.span.src(tokenizer.src), std::move(fields)};
 
-    } else if (peek().kind == TokenKind::LParen) {
-      advance();
-
-      std::vector<Ast::Expr> args = arguments();
-      Token end = expect(TokenKind::RParen, "Expected ')' after arguments");
-
-      return Ast::Call{ident.span.extend(end.span),
-                       ident.span.src(tokenizer.src), std::move(args)};
     } else {
       return Ast::Ident{ident.span, ident.span.src(tokenizer.src)};
     }

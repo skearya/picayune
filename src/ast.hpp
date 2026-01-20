@@ -84,7 +84,7 @@ struct StructInit {
 
 struct Call {
   Span span;
-  std::string_view function;
+  std::unique_ptr<Expr> function;
   std::vector<Expr> arguments;
 };
 

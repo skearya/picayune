@@ -1,3 +1,2 @@
 - Get spans right
-- Fix colors in printed ASTs
-
+- Consistent printing for function types

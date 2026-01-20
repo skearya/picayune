@@ -91,8 +91,11 @@ struct Printer {
             printExpr(*node.right, next, "", false);
           } else if constexpr (std::is_same_v<K, Ast::Call> ||
                                std::is_same_v<K, TAst::Call>) {
-            printHeader(colors[expr.index()],
-                        std::format("Call {}", node.function), type, node.span);
+            printHeader(colors[expr.index()], std::format("Call"), type,
+                        node.span);
+
+            printExpr(*node.function, next, "callee",
+                      node.arguments.size() != 0);
 
             for (size_t i = 0; i < node.arguments.size(); i++) {
               printExpr(node.arguments.at(i), next, std::format("arg {}", i),

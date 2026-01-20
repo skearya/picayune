@@ -50,11 +50,11 @@ void Printer::printHeader(uint8_t color, std::string_view label,
     std::print("\033[39m");
   }
 
-  std::print("\033[90m");
+  std::print("\033[37m");
   std::print(" - ");
   std::print("\033[39m");
 
-  std::print("\033[90m");
+  std::print("\033[37m");
   std::print("\033[3m");
   std::print("[{}:{}:{}]", filename, span.line, span.start + 1);
   std::print("\033[23m");
