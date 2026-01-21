@@ -1,2 +1,4 @@
 - Get spans right
 - Consistent printing for function types
+- Duplicate identifier handling
+- `let var: type = ...`

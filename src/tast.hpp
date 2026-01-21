@@ -82,13 +82,14 @@ struct Char;
 struct Number;
 struct Boolean;
 struct StructInit;
+struct Get;
 struct Ident;
 struct Binary;
 struct Call;
 struct Assign;
 struct Grouping;
 
-using Expr = std::variant<String, Char, Number, Boolean, StructInit, Ident,
+using Expr = std::variant<String, Char, Number, Boolean, StructInit, Get, Ident,
                           Binary, Call, Assign, Grouping>;
 
 struct String {
@@ -125,6 +126,13 @@ struct StructInit {
   Span span;
   std::string_view name;
   std::vector<FieldInit> fields;
+};
+
+struct Get {
+  TypeID type;
+  Span span;
+  std::unique_ptr<Expr> expr;
+  std::string_view name;
 };
 
 struct Ident {

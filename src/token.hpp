@@ -22,6 +22,7 @@ enum struct TokenKind {
   OrOr,
   Colon,
   Comma,
+  Dot,
   LParen,
   RParen,
   LBrace,

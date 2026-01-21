@@ -62,7 +62,7 @@ term: factor | factor ((PLUS | MINUS) factor)*
 
 factor: call | call ((STAR | SLASH) call)*
 
-call: primary | primary (LPAREN arguments? RPAREN)*
+call: primary | primary ((LPAREN arguments? RPAREN) | (DOT IDENTIFIER))*
 
 primary:
   | STRING
@@ -220,15 +220,27 @@ Ast::Expr Parser::factor() {
 Ast::Expr Parser::call() {
   Ast::Expr lhs = primary();
 
-  while (peek().kind == TokenKind::LParen) {
-    advance();
+  while (true) {
+    if (peek().kind == TokenKind::LParen) {
+      advance();
 
-    std::vector<Ast::Expr> args = arguments();
-    Token end = expect(TokenKind::RParen, "Expected ')' after arguments");
+      std::vector<Ast::Expr> args = arguments();
+      Token end = expect(TokenKind::RParen, "Expected ')' after arguments");
 
-    lhs =
-        Ast::Call{getSpan(lhs).extend(end.span),
-                  std::make_unique<Ast::Expr>(std::move(lhs)), std::move(args)};
+      lhs = Ast::Call{getSpan(lhs).extend(end.span),
+                      std::make_unique<Ast::Expr>(std::move(lhs)),
+                      std::move(args)};
+    } else if (peek().kind == TokenKind::Dot) {
+      advance();
+
+      Token name = expect(TokenKind::Ident, "Expected identifier after '.'");
+
+      lhs = Ast::Get{getSpan(lhs).extend(name.span),
+                     std::make_unique<Ast::Expr>(std::move(lhs)),
+                     name.span.src(tokenizer.src)};
+    } else {
+      break;
+    }
   }
 
   return lhs;
@@ -266,7 +278,6 @@ Ast::Expr Parser::primary() {
 
       return Ast::StructInit{ident.span.extend(end.span),
                              ident.span.src(tokenizer.src), std::move(fields)};
-
     } else {
       return Ast::Ident{ident.span, ident.span.src(tokenizer.src)};
     }

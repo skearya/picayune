@@ -160,7 +160,7 @@ TAst::Expr TypeChecker::operator()(const Ast::StructInit &node) {
     for (const auto &fieldInit : node.fields) {
       auto structField = std::ranges::find_if(
           structType->fields, [&](const auto &structField) {
-            return fieldInit.name == structField.name;
+            return structField.name == fieldInit.name;
           });
 
       if (structField == std::end(structType->fields)) {
@@ -182,6 +182,29 @@ TAst::Expr TypeChecker::operator()(const Ast::StructInit &node) {
                             std::move(fieldInits)};
   } else {
     throw std::runtime_error("Type is not a struct");
+  }
+}
+
+TAst::Expr TypeChecker::operator()(const Ast::Get &node) {
+  auto expr = checkExpr(*node.expr);
+  auto exprTypeId = getTypeID(expr);
+  auto exprType = typeArena[exprTypeId.id];
+
+  if (const auto *structType = std::get_if<TAst::TStruct>(&exprType)) {
+    auto structField =
+        std::ranges::find_if(structType->fields, [&](const auto &structField) {
+          return structField.name == node.name;
+        });
+
+    if (structField == std::end(structType->fields)) {
+      throw std::runtime_error(
+          "Tried getting struct field that does not exist");
+    }
+
+    return TAst::Get{structField->type, node.span,
+                     std::make_unique<TAst::Expr>(std::move(expr)), node.name};
+  } else {
+    throw std::runtime_error("Requested field from non-struct");
   }
 }
 

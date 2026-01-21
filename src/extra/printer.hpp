@@ -77,6 +77,12 @@ struct Printer {
               printExpr(*field.value, next, field.name,
                         node.fields.size() == 1 ? false : i == 0);
             }
+          } else if constexpr (std::is_same_v<K, Ast::Get> ||
+                               std::is_same_v<K, TAst::Get>) {
+            printHeader(colors[expr.index()],
+                        std::format("Get '{}'", node.name), type, node.span);
+
+            printExpr(*node.expr, next, "expr", false);
           } else if constexpr (std::is_same_v<K, Ast::Ident> ||
                                std::is_same_v<K, TAst::Ident>) {
             printHeader(colors[expr.index()],
