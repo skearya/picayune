@@ -74,7 +74,7 @@ struct StructInit {
 struct Get {
   Span span;
   std::unique_ptr<Expr> expr;
-  std::string_view name;
+  std::string_view field;
 };
 
 struct Ident {

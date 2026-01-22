@@ -193,7 +193,7 @@ TAst::Expr TypeChecker::operator()(const Ast::Get &node) {
   if (const auto *structType = std::get_if<TAst::TStruct>(&exprType)) {
     auto structField =
         std::ranges::find_if(structType->fields, [&](const auto &structField) {
-          return structField.name == node.name;
+          return structField.name == node.field;
         });
 
     if (structField == std::end(structType->fields)) {
@@ -202,7 +202,7 @@ TAst::Expr TypeChecker::operator()(const Ast::Get &node) {
     }
 
     return TAst::Get{structField->type, node.span,
-                     std::make_unique<TAst::Expr>(std::move(expr)), node.name};
+                     std::make_unique<TAst::Expr>(std::move(expr)), node.field};
   } else {
     throw std::runtime_error("Requested field from non-struct");
   }
