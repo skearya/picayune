@@ -21,7 +21,8 @@ add_executable(${PROJECT_NAME}
     src/parser.cpp
     src/tokenizer.cpp
     src/typechecker.cpp
-    # src/codegen.cpp
+    src/codegen.cpp
+    src/storage.cpp
     src/extra/printer.cpp
 )
 

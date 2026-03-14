@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hpp"
+#include "storage.hpp"
 #include "tast.hpp"
 #include <optional>
 #include <string_view>
@@ -8,20 +9,13 @@
 #include <vector>
 
 struct TypeChecker {
-  std::vector<TAst::Type> typeArena;
+  TypeStorage &ts;
   std::unordered_map<std::string_view, TAst::TypeID> types;
   std::unordered_map<std::string_view, TAst::TypeID> functions;
   std::vector<std::unordered_map<std::string_view, TAst::TypeID>> environments;
-
   const TAst::TFunction *currentFunction;
 
-  TAst::TypeID voidTypeID;
-  TAst::TypeID stringTypeID;
-  TAst::TypeID charTypeID;
-  TAst::TypeID intTypeID;
-  TAst::TypeID booleanTypeID;
-
-  TypeChecker();
+  TypeChecker(TypeStorage &ts);
 
   std::vector<TAst::Decl> check(const std::vector<Ast::Decl> &program);
 
@@ -53,7 +47,6 @@ struct TypeChecker {
 
   std::optional<TAst::TypeID> lookupVar(std::string_view name);
   std::optional<TAst::TypeID> lookupType(std::string_view ident);
-  TAst::TypeID internType(TAst::Type type);
 };
 
 bool doesBlockReturn(const TAst::Block &node);

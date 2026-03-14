@@ -132,7 +132,7 @@ struct Get {
   TypeID type;
   Span span;
   std::unique_ptr<Expr> expr;
-  std::string_view name;
+  std::string_view field;
 };
 
 struct Ident {
@@ -230,9 +230,5 @@ struct Function {
   TypeID returnType;
   Block body;
 };
-
-template <typename T> TAst::TypeID getTypeID(const T &arg) {
-  return std::visit([](const auto &node) { return node.type; }, arg);
-}
 
 } // namespace TAst

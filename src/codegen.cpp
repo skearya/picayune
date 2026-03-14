@@ -24,83 +24,103 @@
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/SubtargetFeature.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <iterator>
+#include <llvm/Support/Alignment.h>
 #include <llvm/Support/CodeGen.h>
 #include <print>
+#include <ranges>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
 #include <variant>
 #include <vector>
 
-LLVMCodegen::LLVMCodegen()
-    : context{}, module{"Codegen", context}, builder{context}, functions{},
-      values{} {}
+LLVMCodegen::LLVMCodegen(TypeStorage &ts)
+    : ts{ts}, context{}, module{"Codegen", context}, builder{context},
+      functions{}, values{} {}
 
 void LLVMCodegen::codegen(const std::vector<TAst::Decl> &program) {
   for (const auto &decl : program) {
-    std::visit(overloads{[this](const TAst::Function &node) {
-                 std::vector<llvm::Type *> functionparams;
-
-                 for (const auto &param : node.params) {
-                   functionparams.push_back(convertType(param.type));
-                 }
-
-                 auto functiontype = llvm::FunctionType::get(
-                     convertType(node.returnType), functionparams, false);
-
-                 auto function = llvm::Function::Create(
-                     functiontype, llvm::Function::ExternalLinkage, node.name,
-                     module);
-
-                 for (size_t i = 0; auto &param : function->args()) {
-                   param.setName(node.params[i].name);
-                 }
-
-                 functions.insert({node.name, function});
-               }},
-               decl);
+    if (const auto *node = std::get_if<TAst::Struct>(&decl)) {
+      llvm::StructType::create(context, node->name);
+    }
   }
 
   for (const auto &decl : program) {
-    std::visit(
-        overloads{[this](const TAst::Function &node) {
-          auto function = functions.at(node.name);
-          auto block = llvm::BasicBlock::Create(context, "entry", function);
+    if (const auto *node = std::get_if<TAst::Struct>(&decl)) {
+      auto structType = llvm::StructType::getTypeByName(context, node->name);
 
-          builder.SetInsertPoint(block);
+      std::vector<llvm::Type *> fields;
 
-          for (auto &arg : function->args()) {
-            auto alloca =
-                createEntryBlockAlloca(function, arg.getType(), arg.getName());
+      for (const auto &field : node->fields) {
+        fields.push_back(typeIDToLLVM(field.type));
+      }
 
-            builder.CreateStore(&arg, alloca);
-          }
+      structType->setBody(fields);
+    }
+  }
 
-          codegenBlock(node.body);
+  for (const auto &decl : program) {
+    if (const auto *node = std::get_if<TAst::Function>(&decl)) {
+      std::vector<llvm::Type *> functionParams;
 
-          llvm::EliminateUnreachableBlocks(*function);
+      for (const auto &param : node->params) {
+        functionParams.push_back(typeIDToLLVM(param.type));
+      }
 
-          // If we have a `void` function that doesn't have an explicit return,
-          // add it.
-          if (node.returnType.index() == TAst::Type{TAst::TVoid{}}.index() &&
-              !function->back().getTerminator()) {
-            builder.CreateRetVoid();
-          }
+      auto functionType = llvm::FunctionType::get(
+          typeIDToLLVM(node->returnType), functionParams, false);
 
-          values.clear();
+      auto function = llvm::Function::Create(
+          functionType, llvm::Function::ExternalLinkage, node->name, module);
 
-          if (llvm::verifyFunction(*function, &llvm::errs())) {
-            std::println("WARNING: Function {} failed verification ^^^",
-                         node.name);
-            std::println();
-          } else {
-            std::println("Function {} verified with no errors.", node.name);
-            std::println();
-          }
-        }},
-        decl);
+      for (size_t i = 0; auto &param : function->args()) {
+        param.setName(node->params[i].name);
+      }
+
+      functions.insert({node->name, function});
+    }
+  }
+
+  for (const auto &decl : program) {
+    if (const auto *node = std::get_if<TAst::Function>(&decl)) {
+      auto function = functions.at(node->name);
+      auto block = llvm::BasicBlock::Create(context, "entry", function);
+
+      builder.SetInsertPoint(block);
+
+      for (auto &arg : function->args()) {
+        auto alloca =
+            createEntryBlockAlloca(function, arg.getType(), arg.getName());
+
+        builder.CreateStore(&arg, alloca);
+      }
+
+      codegenBlock(node->body);
+
+      llvm::EliminateUnreachableBlocks(*function);
+
+      // If we have a `void` function that doesn't have an explicit
+      // return, add it.
+      if (node->returnType == ts.voidTypeID &&
+          !function->back().getTerminator()) {
+        builder.CreateRetVoid();
+      }
+
+      values.clear();
+
+      if (llvm::verifyFunction(*function, &llvm::errs())) {
+        std::println("WARNING: Function {} failed verification ^^^",
+                     node->name);
+        std::println();
+      } else {
+        std::println("Function {} verified with no errors.", node->name);
+        std::println();
+      }
+    }
   }
 
   module.print(llvm::errs(), nullptr);
@@ -198,11 +218,75 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Boolean &node) {
   return llvm::ConstantInt::get(llvm::Type::getInt1Ty(context), node.value);
 }
 
+llvm::Value *LLVMCodegen::operator()(const TAst::StructInit &node) {
+  auto type = typeIDToLLVM(node.type);
+
+  auto function = builder.GetInsertBlock()->getParent();
+  auto alloca = createEntryBlockAlloca(function, type, node.name);
+
+  for (const auto &field : node.fields) {
+    const auto *structType = std::get_if<TAst::TStruct>(&ts.getType(node.type));
+
+    if (structType == nullptr) {
+      throw std::runtime_error(
+          "TAst::StructInit does not produce struct type?");
+    }
+
+    auto structField =
+        std::ranges::find_if(structType->fields, [&](const auto &structField) {
+          return structField.name == field.name;
+        });
+
+    if (structField == std::ranges::end(structType->fields)) {
+      throw std::runtime_error("Struct field does not exist?");
+    }
+
+    auto index = std::ranges::distance(std::ranges::begin(structType->fields),
+                                       structField);
+
+    auto location = builder.CreateStructGEP(type, alloca, index, field.name);
+    auto value = codegenExpr(*field.value);
+
+    builder.CreateStore(value, location);
+  }
+
+  return alloca;
+}
+
+llvm::Value *LLVMCodegen::operator()(const TAst::Get &node) {
+  auto structTypeID = getTypeID(*node.expr);
+  auto structType = std::get_if<TAst::TStruct>(&ts.getType(structTypeID));
+
+  if (structType == nullptr) {
+    throw std::runtime_error("TAst::Get not operating on struct type?");
+  }
+
+  auto structField =
+      std::ranges::find_if(structType->fields, [&](const auto &structField) {
+        return structField.name == node.field;
+      });
+
+  if (structField == std::ranges::end(structType->fields)) {
+    throw std::runtime_error("Struct field does not exist?");
+  }
+
+  auto index = std::ranges::distance(std::ranges::begin(structType->fields),
+                                     structField);
+
+  auto expr = codegenExpr(*node.expr);
+
+  auto location = builder.CreateStructGEP(typeIDToLLVM(structTypeID), expr,
+                                          index, node.field);
+
+  return builder.CreateLoad(typeIDToLLVM(structField->type), location,
+                            structField->name);
+}
+
 llvm::Value *LLVMCodegen::operator()(const TAst::Ident &node) {
   auto alloca = values.at(node.name);
-  auto allocatype = alloca->getAllocatedType();
+  auto allocaType = alloca->getAllocatedType();
 
-  return builder.CreateLoad(allocatype, alloca, node.name);
+  return builder.CreateLoad(allocaType, alloca, node.name);
 }
 
 llvm::Value *LLVMCodegen::operator()(const TAst::Binary &node) {
@@ -239,20 +323,20 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Binary &node) {
                           node.op == Ast::Operator::Or ? "ortmp" : "andtmp");
 
     if (node.op == Ast::Operator::Or) {
-      // If we came from "start" (early exited), OR is true, otherwise the value
-      // of right.
+      // If we came from "start" (early exited), OR is true, otherwise the
+      // value of right.
       phi->addIncoming(
           llvm::ConstantInt::get(llvm::Type::getInt1Ty(context), true),
           startBlock);
-      phi->addIncoming(right, elseBlock);
     } else {
-      // If we came from "start" (early exited), AND is false, otherwise the
-      // value of right.
+      // If we came from "start" (early exited), AND is false, otherwise
+      // the value of right.
       phi->addIncoming(
           llvm::ConstantInt::get(llvm::Type::getInt1Ty(context), false),
           startBlock);
-      phi->addIncoming(right, elseBlock);
     }
+
+    phi->addIncoming(right, elseBlock);
 
     return phi;
   }
@@ -293,7 +377,12 @@ llvm::Value *LLVMCodegen::operator()(const TAst::Call &node) {
     args.push_back(codegenExpr(arg));
   }
 
-  return builder.CreateCall(functions.at(node.function), args, "calltmp");
+  if (const auto *functionName = std::get_if<TAst::Ident>(&*node.function)) {
+    return builder.CreateCall(functions.at(functionName->name), args,
+                              "calltmp");
+  } else {
+    throw std::runtime_error("Expected ident callee");
+  }
 }
 
 llvm::Value *LLVMCodegen::operator()(const TAst::Assign &node) {
@@ -316,7 +405,7 @@ void LLVMCodegen::codegenStmt(const TAst::Stmt &node) {
 void LLVMCodegen::operator()(const TAst::Block &node) { codegenBlock(node); }
 
 void LLVMCodegen::operator()(const TAst::Let &node) {
-  auto type = convertType(TAst::getType(node.initializer));
+  auto type = typeIDToLLVM(getTypeID(node.initializer));
 
   auto function = builder.GetInsertBlock()->getParent();
   auto alloca = createEntryBlockAlloca(function, type, node.name);
@@ -409,27 +498,6 @@ void LLVMCodegen::codegenBlock(const TAst::Block &node) {
   }
 }
 
-llvm::Type *LLVMCodegen::convertType(const TAst::Type &type) {
-  return std::visit(overloads{
-                        [this](const TAst::TString &) -> llvm::Type * {
-                          return llvm::PointerType::getUnqual(context);
-                        },
-                        [this](const TAst::TChar &) -> llvm::Type * {
-                          return llvm::Type::getInt8Ty(context);
-                        },
-                        [this](const TAst::TInt &) -> llvm::Type * {
-                          return llvm::Type::getInt32Ty(context);
-                        },
-                        [this](const TAst::TBoolean &) -> llvm::Type * {
-                          return llvm::Type::getInt1Ty(context);
-                        },
-                        [this](const TAst::TVoid &) -> llvm::Type * {
-                          return llvm::Type::getVoidTy(context);
-                        },
-                    },
-                    type);
-}
-
 llvm::AllocaInst *LLVMCodegen::createEntryBlockAlloca(llvm::Function *function,
                                                       llvm::Type *type,
                                                       llvm::StringRef name) {
@@ -449,4 +517,40 @@ bool LLVMCodegen::createBreakIfUnterminated(llvm::BasicBlock *dest) {
     builder.CreateBr(dest);
     return true;
   }
+}
+
+llvm::Type *LLVMCodegen::typeIDToLLVM(TAst::TypeID typeID) {
+  return std::visit(
+      overloads{
+          [&](const TAst::TString &) -> llvm::Type * {
+            return llvm::PointerType::getUnqual(context);
+          },
+          [&](const TAst::TChar &) -> llvm::Type * {
+            return llvm::Type::getInt8Ty(context);
+          },
+          [&](const TAst::TInt &) -> llvm::Type * {
+            return llvm::Type::getInt32Ty(context);
+          },
+          [&](const TAst::TBoolean &) -> llvm::Type * {
+            return llvm::Type::getInt1Ty(context);
+          },
+          [&](const TAst::TVoid &) -> llvm::Type * {
+            return llvm::Type::getVoidTy(context);
+          },
+          [&](const TAst::TStruct &node) -> llvm::Type * {
+            return llvm::StructType::getTypeByName(context, node.name);
+          },
+          [&](const TAst::TFunction &node) -> llvm::Type * {
+            std::vector<llvm::Type *> parameters;
+
+            for (const auto &parameter : node.parameters) {
+              parameters.push_back(typeIDToLLVM(parameter.type));
+            }
+
+            auto returnType = typeIDToLLVM(node.returnType);
+
+            return llvm::FunctionType::get(returnType, parameters, false);
+          },
+      },
+      ts.getType(typeID));
 }

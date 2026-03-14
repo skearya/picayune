@@ -25,8 +25,8 @@ struct Printer {
                    std::optional<TAst::TypeID> typeID, const Span &span);
   void printStructField(std::string_view label,
                         std::variant<std::string_view, TAst::TypeID> typeID);
-
   std::string nextPrefix(std::string prefix, bool isLeft);
+
   std::string_view operatorName(Ast::Operator op);
   std::string_view typeName(TAst::TypeID typeID);
 
@@ -80,7 +80,7 @@ struct Printer {
           } else if constexpr (std::is_same_v<K, Ast::Get> ||
                                std::is_same_v<K, TAst::Get>) {
             printHeader(colors[expr.index()],
-                        std::format("Get '{}'", node.name), type, node.span);
+                        std::format("Get '{}'", node.field), type, node.span);
 
             printExpr(*node.expr, next, "expr", false);
           } else if constexpr (std::is_same_v<K, Ast::Ident> ||

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "storage.hpp"
 #include "tast.hpp"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -17,13 +18,14 @@
 #include <vector>
 
 struct LLVMCodegen {
+  TypeStorage &ts;
   llvm::LLVMContext context;
   llvm::Module module;
   llvm::IRBuilder<> builder;
   std::unordered_map<std::string_view, llvm::Function *> functions;
   std::unordered_map<std::string_view, llvm::AllocaInst *> values;
 
-  LLVMCodegen();
+  LLVMCodegen(TypeStorage &ts);
 
   void codegen(const std::vector<TAst::Decl> &program);
 
@@ -33,6 +35,8 @@ struct LLVMCodegen {
   llvm::Value *operator()(const TAst::Char &node);
   llvm::Value *operator()(const TAst::Number &node);
   llvm::Value *operator()(const TAst::Boolean &node);
+  llvm::Value *operator()(const TAst::StructInit &node);
+  llvm::Value *operator()(const TAst::Get &node);
   llvm::Value *operator()(const TAst::Ident &node);
   llvm::Value *operator()(const TAst::Binary &node);
   llvm::Value *operator()(const TAst::Call &node);
@@ -50,11 +54,11 @@ struct LLVMCodegen {
 
   void codegenBlock(const TAst::Block &node);
 
-  llvm::Type *convertType(const TAst::Type &type);
-
   llvm::AllocaInst *createEntryBlockAlloca(llvm::Function *function,
                                            llvm::Type *type,
                                            llvm::StringRef name);
 
   bool createBreakIfUnterminated(llvm::BasicBlock *dest);
+
+  llvm::Type *typeIDToLLVM(TAst::TypeID typeID);
 };
