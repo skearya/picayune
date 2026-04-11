@@ -8,6 +8,15 @@
 #include <sstream>
 #include <string_view>
 
+std::stringstream readFile(const char *filename) {
+  std::ifstream file{filename};
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  file.close();
+
+  return buffer;
+}
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     std::println("Invalid argument count");
@@ -15,24 +24,23 @@ int main(int argc, char **argv) {
   }
 
   auto filename = argv[1];
-
-  std::ifstream file{filename};
-  std::stringstream buffer;
-  buffer << file.rdbuf();
-  file.close();
-
+  auto buffer = readFile(filename);
   auto source = buffer.str();
 
-  std::vector<Ast::Decl> root =
-      Parser{Tokenizer{std::string_view{source}}}.program();
+  auto tokenizer = Tokenizer{std::string_view{source}};
+  auto parser = Parser{tokenizer};
+  auto root = parser.program();
 
-  Printer::printProgram(root, "example.lang");
+  Printer{filename}.printProgram(root);
   std::println();
 
-  std::vector<TAst::Decl> troot = TypeChecker{}.check(root);
+  TypeStorage ts;
+  auto typechecker = TypeChecker{ts};
+  auto troot = typechecker.check(root);
 
-  Printer::printProgram(troot, "example.lang");
+  Printer{filename, ts.arena}.printProgram(troot);
   std::println();
 
-  LLVMCodegen{}.codegen(troot);
+  auto codegen = LLVMCodegen{ts};
+  codegen.codegen(troot);
 }

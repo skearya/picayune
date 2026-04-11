@@ -12,11 +12,8 @@ struct Tokenizer {
   Tokenizer(std::string_view src);
 
   char peek();
-
   char next();
-
   bool match(char c);
-
   void skipWhitespace();
 
   Token token();

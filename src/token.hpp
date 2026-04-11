@@ -22,6 +22,7 @@ enum struct TokenKind {
   OrOr,
   Colon,
   Comma,
+  Dot,
   LParen,
   RParen,
   LBrace,
@@ -30,6 +31,7 @@ enum struct TokenKind {
 
   True,
   False,
+  Struct,
   Function,
   Let,
   If,

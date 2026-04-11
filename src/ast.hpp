@@ -29,14 +29,16 @@ struct String;
 struct Char;
 struct Number;
 struct Boolean;
+struct StructInit;
+struct Get;
 struct Ident;
 struct Binary;
 struct Call;
 struct Assign;
 struct Grouping;
 
-using Expr = std::variant<String, Char, Number, Boolean, Ident, Binary, Call,
-                          Assign, Grouping>;
+using Expr = std::variant<String, Char, Number, Boolean, StructInit, Get, Ident,
+                          Binary, Call, Assign, Grouping>;
 
 struct String {
   Span span;
@@ -58,6 +60,23 @@ struct Boolean {
   bool value;
 };
 
+struct FieldInit {
+  std::string_view name;
+  std::unique_ptr<Expr> value;
+};
+
+struct StructInit {
+  Span span;
+  std::string_view name;
+  std::vector<FieldInit> fields;
+};
+
+struct Get {
+  Span span;
+  std::unique_ptr<Expr> expr;
+  std::string_view field;
+};
+
 struct Ident {
   Span span;
   std::string_view name;
@@ -72,7 +91,7 @@ struct Binary {
 
 struct Call {
   Span span;
-  std::string_view function;
+  std::unique_ptr<Expr> function;
   std::vector<Expr> arguments;
 };
 
@@ -140,8 +159,20 @@ struct ExprStmt {
 };
 
 struct Function;
+struct Struct;
 
-using Decl = std::variant<Function>;
+using Decl = std::variant<Struct, Function>;
+
+struct Field {
+  std::string_view name;
+  std::string_view type;
+};
+
+struct Struct {
+  Span span;
+  std::string_view name;
+  std::vector<Field> fields;
+};
 
 struct Parameter {
   std::string_view name;
@@ -152,7 +183,7 @@ struct Function {
   Span span;
   std::string_view name;
   std::vector<Parameter> params;
-  std::string_view type;
+  std::string_view returnType;
   Block body;
 };
 

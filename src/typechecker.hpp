@@ -1,28 +1,21 @@
 #pragma once
 
 #include "ast.hpp"
+#include "storage.hpp"
 #include "tast.hpp"
 #include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
 
-struct PartialFunction;
-
-using PartialDecl = std::variant<PartialFunction>;
-
-struct PartialFunction {
-  Span span;
-  TAst::Type type;
-  std::string_view name;
-  std::vector<TAst::Parameter> params;
-  const Ast::Block &body;
-};
-
 struct TypeChecker {
-  std::vector<PartialDecl> partialDeclarations;
-  std::vector<std::unordered_map<std::string_view, TAst::Type>> environments;
-  const PartialFunction *currentFunction;
+  TypeStorage &ts;
+  std::unordered_map<std::string_view, TAst::TypeID> types;
+  std::unordered_map<std::string_view, TAst::TypeID> functions;
+  std::vector<std::unordered_map<std::string_view, TAst::TypeID>> environments;
+  const TAst::TFunction *currentFunction;
+
+  TypeChecker(TypeStorage &ts);
 
   std::vector<TAst::Decl> check(const std::vector<Ast::Decl> &program);
 
@@ -32,6 +25,8 @@ struct TypeChecker {
   TAst::Expr operator()(const Ast::Char &node);
   TAst::Expr operator()(const Ast::Number &node);
   TAst::Expr operator()(const Ast::Boolean &node);
+  TAst::Expr operator()(const Ast::StructInit &node);
+  TAst::Expr operator()(const Ast::Get &node);
   TAst::Expr operator()(const Ast::Ident &node);
   TAst::Expr operator()(const Ast::Binary &node);
   TAst::Expr operator()(const Ast::Call &node);
@@ -50,11 +45,9 @@ struct TypeChecker {
 
   TAst::Block checkBlock(const Ast::Block &node);
 
-  std::optional<TAst::Type> lookup(std::string_view name);
-  std::optional<const PartialFunction *> lookupFunction(std::string_view name);
+  std::optional<TAst::TypeID> lookupVar(std::string_view name);
+  std::optional<TAst::TypeID> lookupType(std::string_view ident);
 };
-
-TAst::Type identToType(std::string_view ident);
 
 bool doesBlockReturn(const TAst::Block &node);
 bool doesReturn(const TAst::Stmt &node);
