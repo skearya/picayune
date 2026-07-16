@@ -1,4 +1,4 @@
-#include "codegen.hpp"
+#include "backend/llvm.hpp"
 #include "extra/printer.hpp"
 #include "parser.hpp"
 #include "tokenizer.hpp"
@@ -41,6 +41,5 @@ int main(int argc, char **argv) {
   Printer{filename, ts.arena}.printProgram(troot);
   std::println();
 
-  auto codegen = LLVMCodegen{ts};
-  codegen.codegen(troot);
+  LLVMCodegen{ts}.codegen(troot);
 }

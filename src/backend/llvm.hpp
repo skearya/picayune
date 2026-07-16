@@ -1,7 +1,7 @@
 #pragma once
 
-#include "storage.hpp"
-#include "tast.hpp"
+#include "../storage.hpp"
+#include "../tast.hpp"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"

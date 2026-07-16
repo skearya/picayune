@@ -278,9 +278,9 @@ Ast::Expr Parser::primary() {
 
       return Ast::StructInit{ident.span.extend(end.span),
                              ident.span.src(tokenizer.src), std::move(fields)};
-    } else {
-      return Ast::Ident{ident.span, ident.span.src(tokenizer.src)};
     }
+
+    return Ast::Ident{ident.span, ident.span.src(tokenizer.src)};
   } else if (peek().kind == TokenKind::LParen) {
     Token start = advance();
 
@@ -289,9 +289,9 @@ Ast::Expr Parser::primary() {
 
     return Ast::Grouping{start.span.extend(closing.span),
                          std::make_unique<Ast::Expr>(std::move(inner))};
-  } else {
-    throw std::runtime_error("Expected expression");
   }
+
+  throw std::runtime_error("Expected expression");
 }
 
 Ast::Stmt Parser::statement() {
