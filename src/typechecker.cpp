@@ -15,7 +15,7 @@
 #include <variant>
 #include <vector>
 
-TypeChecker::TypeChecker(TypeStorage &ts)
+TypeChecker::TypeChecker(Storage &ts)
     : ts{ts}, types{{"void", ts.voidTypeID},
                     {"string", ts.stringTypeID},
                     {"char", ts.charTypeID},

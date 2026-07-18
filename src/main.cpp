@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   Printer{filename}.printProgram(root);
   std::println();
 
-  TypeStorage ts;
+  Storage ts;
   auto typechecker = TypeChecker{ts};
   auto troot = typechecker.check(root);
 

@@ -2,13 +2,30 @@
 
 #include "span.hpp"
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <string_view>
 #include <variant>
 #include <vector>
 
 namespace Ast {
+
+struct ExprId {
+  uint32_t id;
+
+  bool operator==(const ExprId &) const = default;
+};
+
+struct StmtId {
+  uint32_t id;
+
+  bool operator==(const StmtId &) const = default;
+};
+
+struct DeclId {
+  uint32_t id;
+
+  bool operator==(const DeclId &) const = default;
+};
 
 enum struct Operator {
   Add,
@@ -25,143 +42,106 @@ enum struct Operator {
   And,
 };
 
-struct String;
-struct Char;
-struct Number;
-struct Boolean;
-struct StructInit;
-struct Get;
-struct Ident;
-struct Binary;
-struct Call;
-struct Assign;
-struct Grouping;
-
-using Expr = std::variant<String, Char, Number, Boolean, StructInit, Get, Ident,
-                          Binary, Call, Assign, Grouping>;
+/* Expressions */
 
 struct String {
-  Span span;
   std::string_view value;
 };
 
 struct Char {
-  Span span;
   char value;
 };
 
 struct Number {
-  Span span;
   int32_t value;
 };
 
 struct Boolean {
-  Span span;
   bool value;
 };
 
 struct FieldInit {
   std::string_view name;
-  std::unique_ptr<Expr> value;
+  ExprId value;
 };
 
 struct StructInit {
-  Span span;
   std::string_view name;
   std::vector<FieldInit> fields;
 };
 
 struct Get {
-  Span span;
-  std::unique_ptr<Expr> expr;
+  ExprId expr;
   std::string_view field;
 };
 
 struct Ident {
-  Span span;
   std::string_view name;
 };
 
 struct Binary {
-  Span span;
-  std::unique_ptr<Expr> left;
+  ExprId left;
   Operator op;
-  std::unique_ptr<Expr> right;
+  ExprId right;
 };
 
 struct Call {
-  Span span;
-  std::unique_ptr<Expr> function;
-  std::vector<Expr> arguments;
+  ExprId function;
+  std::vector<ExprId> arguments;
 };
 
 struct Assign {
-  Span span;
   std::string_view variable;
-  std::unique_ptr<Expr> value;
+  ExprId value;
 };
 
 struct Grouping {
-  Span span;
-  std::unique_ptr<Expr> inner;
+  ExprId inner;
 };
 
-struct Block;
-struct Let;
-struct If;
-struct While;
-struct For;
-struct Return;
-struct ExprStmt;
+using ExprVariant = std::variant<String, Char, Number, Boolean, StructInit, Get,
+                                 Ident, Binary, Call, Assign, Grouping>;
 
-using Stmt = std::variant<Block, Let, If, While, For, Return, ExprStmt>;
+/* Statements */
 
 struct Block {
-  Span span;
-  std::vector<Stmt> statements;
+  std::vector<StmtId> statements;
 };
 
 struct Let {
-  Span span;
   std::string_view name;
-  Expr initializer;
+  ExprId initializer;
 };
 
 struct If {
-  Span span;
-  Expr condition;
-  std::unique_ptr<Stmt> thenStatement;
-  std::optional<std::unique_ptr<Stmt>> elseStatement;
+  ExprId condition;
+  StmtId thenStatement;
+  std::optional<StmtId> elseStatement;
 };
 
 struct While {
-  Span span;
-  Expr condition;
-  std::unique_ptr<Stmt> body;
+  ExprId condition;
+  StmtId body;
 };
 
 struct For {
-  Span span;
-  std::unique_ptr<Stmt> initializer;
-  Expr condition;
-  Expr update;
-  std::unique_ptr<Stmt> body;
+  StmtId initializer;
+  ExprId condition;
+  ExprId update;
+  StmtId body;
 };
 
 struct Return {
-  Span span;
-  std::optional<Expr> value;
+  std::optional<ExprId> value;
 };
 
 struct ExprStmt {
-  Span span;
-  Expr expression;
+  ExprId expression;
 };
 
-struct Function;
-struct Struct;
+using StmtVariant = std::variant<Block, Let, If, While, For, Return, ExprStmt>;
 
-using Decl = std::variant<Struct, Function>;
+/* Declarations */
 
 struct Field {
   std::string_view name;
@@ -169,7 +149,6 @@ struct Field {
 };
 
 struct Struct {
-  Span span;
   std::string_view name;
   std::vector<Field> fields;
 };
@@ -180,11 +159,29 @@ struct Parameter {
 };
 
 struct Function {
-  Span span;
   std::string_view name;
   std::vector<Parameter> params;
   std::string_view returnType;
   Block body;
+};
+
+using DeclVariant = std::variant<Struct, Function>;
+
+/* Wrapper Types */
+
+struct Expr {
+  Span span;
+  ExprVariant node;
+};
+
+struct Stmt {
+  Span span;
+  StmtVariant node;
+};
+
+struct Decl {
+  Span span;
+  DeclVariant node;
 };
 
 } // namespace Ast

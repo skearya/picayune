@@ -9,13 +9,13 @@
 #include <vector>
 
 struct TypeChecker {
-  TypeStorage &ts;
+  Storage &ts;
   std::unordered_map<std::string_view, TAst::TypeID> types;
   std::unordered_map<std::string_view, TAst::TypeID> functions;
   std::vector<std::unordered_map<std::string_view, TAst::TypeID>> environments;
   const TAst::TFunction *currentFunction;
 
-  TypeChecker(TypeStorage &ts);
+  TypeChecker(Storage &ts);
 
   std::vector<TAst::Decl> check(const std::vector<Ast::Decl> &program);
 

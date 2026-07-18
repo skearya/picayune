@@ -1,18 +1,26 @@
 #pragma once
 
-#include "tast.hpp"
+#include "ast.hpp"
+#include "type.hpp"
 
-struct TypeStorage {
-  std::vector<TAst::Type> arena;
+struct Storage {
+  std::vector<Ast::Expr> exprs;
+  std::vector<Ast::Stmt> stmts;
+  std::vector<Ast::Decl> decls;
+  std::vector<Type::Type> types;
 
-  TAst::TypeID voidTypeID;
-  TAst::TypeID stringTypeID;
-  TAst::TypeID charTypeID;
-  TAst::TypeID intTypeID;
-  TAst::TypeID booleanTypeID;
+  std::vector<Type::TypeID> exprTypeIds;
+  std::vector<Type::TypeID> declTypeIds;
 
-  TypeStorage();
+  Storage();
 
-  TAst::TypeID internType(TAst::Type type);
-  TAst::Type &getType(TAst::TypeID typeId);
+  Ast::ExprId add(Ast::Expr expr);
+  Ast::StmtId add(Ast::Stmt stmt);
+  Ast::DeclId add(Ast::Decl Decl);
+  Type::TypeID add(Type::Type type);
+
+  const Ast::Expr &get(Ast::ExprId exprId);
+  const Ast::Stmt &get(Ast::StmtId stmtId);
+  const Ast::Decl &get(Ast::DeclId DeclId);
+  const Type::Type &get(Type::TypeID typeId);
 };

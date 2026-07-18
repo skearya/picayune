@@ -18,14 +18,14 @@
 #include <vector>
 
 struct LLVMCodegen {
-  TypeStorage &ts;
+  Storage &ts;
   llvm::LLVMContext context;
   llvm::Module module;
   llvm::IRBuilder<> builder;
   std::unordered_map<std::string_view, llvm::Function *> functions;
   std::unordered_map<std::string_view, llvm::AllocaInst *> values;
 
-  LLVMCodegen(TypeStorage &ts);
+  LLVMCodegen(Storage &ts);
 
   void codegen(const std::vector<TAst::Decl> &program);
 

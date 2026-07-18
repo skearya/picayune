@@ -38,7 +38,7 @@
 #include <variant>
 #include <vector>
 
-LLVMCodegen::LLVMCodegen(TypeStorage &ts)
+LLVMCodegen::LLVMCodegen(Storage &ts)
     : ts{ts}, context{}, module{"Codegen", context}, builder{context},
       functions{}, values{} {}
 
