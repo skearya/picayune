@@ -1,9 +1,8 @@
 #include "parser.hpp"
 #include "ast.hpp"
 #include "span.hpp"
+#include "storage.hpp"
 #include "token.hpp"
-#include "utils.hpp"
-#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
@@ -88,13 +87,15 @@ parameters: parameter (COMMA parameter)*
 
 */
 
-Parser::Parser(Tokenizer t) : tokenizer{t}, current{tokenizer.token()} {}
+Parser::Parser(Storage &storage, Tokenizer t)
+    : storage{storage}, tokenizer{t}, current{tokenizer.token()} {}
 
 Token Parser::peek() { return current; }
 
 Token Parser::advance() {
   Token prev = current;
   current = tokenizer.token();
+
   return prev;
 }
 
@@ -106,138 +107,121 @@ Token Parser::expect(TokenKind kind, std::string_view error) {
   return advance();
 }
 
-Ast::Expr Parser::expression() { return assignment(); };
+Ast::ExprId Parser::expression() { return assignment(); };
 
-Ast::Expr Parser::assignment() {
-  Ast::Expr lhs = logical();
+Ast::ExprId Parser::assignment() {
+  Ast::ExprId lhs = logical();
 
   if (peek().kind == TokenKind::Eq) {
     advance();
-    Ast::Expr rhs = assignment();
+    Ast::ExprId rhs = assignment();
 
-    if (auto ident = std::get_if<Ast::Ident>(&lhs)) {
-      return Ast::Assign{getSpan(lhs).extend(getSpan(rhs)), ident->name,
-                         std::make_unique<Ast::Expr>(std::move(rhs))};
-    } else {
-      throw std::runtime_error("Invalid assignment target");
+    if (const auto *ident = std::get_if<Ast::Ident>(&storage.get(lhs).node)) {
+      return storage.add(Ast::Expr{getSpan(lhs).extend(getSpan(rhs)),
+                                   Ast::Assign{ident->name, rhs}});
     }
-  } else {
-    return lhs;
+
+    throw std::runtime_error("Invalid assignment target");
   }
+
+  return lhs;
 }
 
-Ast::Expr Parser::logical() {
-  Ast::Expr lhs = equality();
+Ast::ExprId Parser::logical() {
+  Ast::ExprId lhs = equality();
 
   while (peek().kind == TokenKind::OrOr || peek().kind == TokenKind::AndAnd) {
     Token op = advance();
-    Ast::Expr rhs = equality();
+    Ast::ExprId rhs = equality();
 
-    lhs = Ast::Binary{
-        getSpan(lhs).extend(getSpan(rhs)),
-        std::make_unique<Ast::Expr>(std::move(lhs)),
-        tokenToOperator(op.kind),
-        std::make_unique<Ast::Expr>(std::move(rhs)),
-    };
+    lhs =
+        storage.add(Ast::Expr{getSpan(lhs).extend(getSpan(rhs)),
+                              Ast::Binary{lhs, tokenToOperator(op.kind), rhs}});
   }
 
   return lhs;
 }
 
-Ast::Expr Parser::equality() {
-  Ast::Expr lhs = comparison();
+Ast::ExprId Parser::equality() {
+  Ast::ExprId lhs = comparison();
 
   while (peek().kind == TokenKind::EqEq || peek().kind == TokenKind::BangEq) {
     Token op = advance();
-    Ast::Expr rhs = comparison();
+    Ast::ExprId rhs = comparison();
 
-    lhs = Ast::Binary{
-        getSpan(lhs).extend(getSpan(rhs)),
-        std::make_unique<Ast::Expr>(std::move(lhs)),
-        tokenToOperator(op.kind),
-        std::make_unique<Ast::Expr>(std::move(rhs)),
-    };
+    lhs =
+        storage.add(Ast::Expr{getSpan(lhs).extend(getSpan(rhs)),
+                              Ast::Binary{lhs, tokenToOperator(op.kind), rhs}});
   }
 
   return lhs;
 }
 
-Ast::Expr Parser::comparison() {
-  Ast::Expr lhs = term();
+Ast::ExprId Parser::comparison() {
+  Ast::ExprId lhs = term();
 
   while (peek().kind == TokenKind::Lt || peek().kind == TokenKind::LtEq ||
          peek().kind == TokenKind::Gt || peek().kind == TokenKind::GtEq) {
     Token op = advance();
-    Ast::Expr rhs = term();
+    Ast::ExprId rhs = term();
 
-    lhs = Ast::Binary{
-        getSpan(lhs).extend(getSpan(rhs)),
-        std::make_unique<Ast::Expr>(std::move(lhs)),
-        tokenToOperator(op.kind),
-        std::make_unique<Ast::Expr>(std::move(rhs)),
-    };
+    lhs =
+        storage.add(Ast::Expr{getSpan(lhs).extend(getSpan(rhs)),
+                              Ast::Binary{lhs, tokenToOperator(op.kind), rhs}});
   }
 
   return lhs;
 }
 
-Ast::Expr Parser::term() {
-  Ast::Expr lhs = factor();
+Ast::ExprId Parser::term() {
+  Ast::ExprId lhs = factor();
 
   while (peek().kind == TokenKind::Plus || peek().kind == TokenKind::Minus) {
     Token op = advance();
-    Ast::Expr rhs = factor();
+    Ast::ExprId rhs = factor();
 
-    lhs = Ast::Binary{
-        getSpan(lhs).extend(getSpan(rhs)),
-        std::make_unique<Ast::Expr>(std::move(lhs)),
-        tokenToOperator(op.kind),
-        std::make_unique<Ast::Expr>(std::move(rhs)),
-    };
+    lhs =
+        storage.add(Ast::Expr{getSpan(lhs).extend(getSpan(rhs)),
+                              Ast::Binary{lhs, tokenToOperator(op.kind), rhs}});
   }
 
   return lhs;
 }
 
-Ast::Expr Parser::factor() {
-  Ast::Expr lhs = call();
+Ast::ExprId Parser::factor() {
+  Ast::ExprId lhs = call();
 
   while (peek().kind == TokenKind::Star || peek().kind == TokenKind::Slash) {
     Token op = advance();
-    Ast::Expr rhs = call();
+    Ast::ExprId rhs = call();
 
-    lhs = Ast::Binary{
-        getSpan(lhs).extend(getSpan(rhs)),
-        std::make_unique<Ast::Expr>(std::move(lhs)),
-        tokenToOperator(op.kind),
-        std::make_unique<Ast::Expr>(std::move(rhs)),
-    };
+    lhs =
+        storage.add(Ast::Expr{getSpan(lhs).extend(getSpan(rhs)),
+                              Ast::Binary{lhs, tokenToOperator(op.kind), rhs}});
   }
 
   return lhs;
 }
 
-Ast::Expr Parser::call() {
-  Ast::Expr lhs = primary();
+Ast::ExprId Parser::call() {
+  Ast::ExprId lhs = primary();
 
   while (true) {
     if (peek().kind == TokenKind::LParen) {
       advance();
 
-      std::vector<Ast::Expr> args = arguments();
+      std::vector<Ast::ExprId> args = arguments();
       Token end = expect(TokenKind::RParen, "Expected ')' after arguments");
 
-      lhs = Ast::Call{getSpan(lhs).extend(end.span),
-                      std::make_unique<Ast::Expr>(std::move(lhs)),
-                      std::move(args)};
+      lhs = storage.add(Ast::Expr{getSpan(lhs).extend(end.span),
+                                  Ast::Call{lhs, std::move(args)}});
     } else if (peek().kind == TokenKind::Dot) {
       advance();
 
       Token name = expect(TokenKind::Ident, "Expected identifier after '.'");
 
-      lhs = Ast::Get{getSpan(lhs).extend(name.span),
-                     std::make_unique<Ast::Expr>(std::move(lhs)),
-                     name.span.src(tokenizer.src)};
+      lhs = storage.add(Ast::Expr{getSpan(lhs).extend(name.span),
+                                  Ast::Get{lhs, name.span.src(tokenizer.src)}});
     } else {
       break;
     }
@@ -246,28 +230,38 @@ Ast::Expr Parser::call() {
   return lhs;
 }
 
-Ast::Expr Parser::primary() {
+Ast::ExprId Parser::primary() {
   if (peek().kind == TokenKind::Str) {
     Token str = advance();
 
-    return Ast::String{str.span, str.value.string};
-  } else if (peek().kind == TokenKind::Char) {
+    return storage.add(Ast::Expr{str.span, Ast::String{str.value.string}});
+  }
+
+  if (peek().kind == TokenKind::Char) {
     Token charr = advance();
 
-    return Ast::Char{charr.span, charr.value.character};
-  } else if (peek().kind == TokenKind::Num) {
+    return storage.add(Ast::Expr{charr.span, Ast::Char{charr.value.character}});
+  }
+
+  if (peek().kind == TokenKind::Num) {
     Token num = advance();
 
-    return Ast::Number{num.span, num.value.integer};
-  } else if (peek().kind == TokenKind::True) {
+    return storage.add(Ast::Expr{num.span, Ast::Number{num.value.integer}});
+  }
+
+  if (peek().kind == TokenKind::True) {
     Token truee = advance();
 
-    return Ast::Boolean{truee.span, true};
-  } else if (peek().kind == TokenKind::False) {
+    return storage.add(Ast::Expr{truee.span, Ast::Boolean{true}});
+  }
+
+  if (peek().kind == TokenKind::False) {
     Token falsee = advance();
 
-    return Ast::Boolean{falsee.span, false};
-  } else if (peek().kind == TokenKind::Ident) {
+    return storage.add(Ast::Expr{falsee.span, Ast::Boolean{false}});
+  }
+
+  if (peek().kind == TokenKind::Ident) {
     Token ident = advance();
 
     if (peek().kind == TokenKind::LBrace) {
@@ -276,28 +270,35 @@ Ast::Expr Parser::primary() {
       std::vector<Ast::FieldInit> fields = fieldInits();
       Token end = expect(TokenKind::RBrace, "Expected '}' after fields");
 
-      return Ast::StructInit{ident.span.extend(end.span),
-                             ident.span.src(tokenizer.src), std::move(fields)};
+      return storage.add(Ast::Expr{
+          ident.span.extend(end.span),
+          {Ast::StructInit{ident.span.src(tokenizer.src), std::move(fields)}}});
     }
 
-    return Ast::Ident{ident.span, ident.span.src(tokenizer.src)};
-  } else if (peek().kind == TokenKind::LParen) {
+    return storage.add(
+        Ast::Expr{ident.span, Ast::Ident{ident.span.src(tokenizer.src)}});
+  }
+
+  if (peek().kind == TokenKind::LParen) {
     Token start = advance();
 
-    Ast::Expr inner = expression();
+    Ast::ExprId inner = expression();
     Token closing = expect(TokenKind::RParen, "Expected ')' after expression");
 
-    return Ast::Grouping{start.span.extend(closing.span),
-                         std::make_unique<Ast::Expr>(std::move(inner))};
+    return storage.add(
+        Ast::Expr{start.span.extend(closing.span), Ast::Grouping{inner}});
   }
 
   throw std::runtime_error("Expected expression");
 }
 
-Ast::Stmt Parser::statement() {
+Ast::StmtId Parser::statement() {
   switch (peek().kind) {
-  case TokenKind::LBrace:
-    return block();
+  case TokenKind::LBrace: {
+    auto [span, content] = block();
+
+    return storage.add(Ast::Stmt{span, std::move(content)});
+  }
   case TokenKind::Let:
     return let();
   case TokenKind::If:
@@ -313,122 +314,115 @@ Ast::Stmt Parser::statement() {
   }
 }
 
-Ast::Stmt Parser::let() {
+Ast::StmtId Parser::let() {
   Token start = expect(TokenKind::Let, "Expected 'let'");
   Token ident = expect(TokenKind::Ident, "Expected identifier after let");
   expect(TokenKind::Eq, "Expected '=' after identifier");
 
-  Ast::Expr initializer = expression();
+  Ast::ExprId initializer = expression();
   Token closing = expect(TokenKind::Semi, "Expected ';' after expression");
 
-  return Ast::Let{start.span.extend(closing.span),
-                  ident.span.src(tokenizer.src), std::move(initializer)};
+  return storage.add(
+      Ast::Stmt{start.span.extend(closing.span),
+                Ast::Let{ident.span.src(tokenizer.src), initializer}});
 }
 
-Ast::Stmt Parser::ifStatement() {
+Ast::StmtId Parser::ifStatement() {
   Token start = expect(TokenKind::If, "Expected 'if'");
   expect(TokenKind::LParen, "Expected '(' after if");
 
-  Ast::Expr cond = expression();
+  Ast::ExprId cond = expression();
   expect(TokenKind::RParen, "Expected ')' after if condition");
 
-  Ast::Stmt thenStmt = statement();
+  Ast::StmtId thenStmt = statement();
 
   if (peek().kind == TokenKind::Else) {
     advance();
-    Ast::Stmt elseStmt = statement();
+    Ast::StmtId elseStmt = statement();
 
-    return Ast::If{
-        start.span.extend(getSpan(elseStmt)), std::move(cond),
-        std::make_unique<Ast::Stmt>(std::move(thenStmt)),
-        std::optional{std::make_unique<Ast::Stmt>(std::move(elseStmt))}};
-  } else {
-    return Ast::If{start.span.extend(getSpan(thenStmt)), std::move(cond),
-                   std::make_unique<Ast::Stmt>(std::move(thenStmt)),
-                   std::nullopt};
+    return storage.add(
+        Ast::Stmt{start.span.extend(getSpan(elseStmt)),
+                  Ast::If{cond, thenStmt, std::optional{elseStmt}}});
   }
+
+  return storage.add(Ast::Stmt{start.span.extend(getSpan(thenStmt)),
+                               Ast::If{cond, thenStmt, std::nullopt}});
 }
 
-Ast::Stmt Parser::whileStatement() {
+Ast::StmtId Parser::whileStatement() {
   Token start = expect(TokenKind::While, "Expected 'while'");
   expect(TokenKind::LParen, "Expected '(' after while");
 
-  Ast::Expr cond = expression();
+  Ast::ExprId cond = expression();
   expect(TokenKind::RParen, "Expected ')' after while condition");
 
-  Ast::Stmt body = statement();
+  Ast::StmtId body = statement();
 
-  return Ast::While{
-      start.span.extend(getSpan(body)),
-      std::move(cond),
-      std::make_unique<Ast::Stmt>(std::move(body)),
-  };
+  return storage.add(
+      Ast::Stmt{start.span.extend(getSpan(body)), Ast::While{cond, body}});
 }
 
-Ast::Stmt Parser::forStatement() {
+Ast::StmtId Parser::forStatement() {
   Token start = expect(TokenKind::For, "Expected 'for'");
   expect(TokenKind::LParen, "Expected '(' after for");
 
-  Ast::Stmt init = statement();
+  Ast::StmtId init = statement();
 
-  if (!std::holds_alternative<Ast::Let>(init) &&
-      !std::holds_alternative<Ast::ExprStmt>(init)) {
+  if (!std::holds_alternative<Ast::Let>(storage.get(init).node) &&
+      !std::holds_alternative<Ast::ExprStmt>(storage.get(init).node)) {
     throw std::runtime_error("Expected for loop initalizer to either be a let "
                              "or expression statement");
   }
 
-  Ast::Expr condition = expression();
+  Ast::ExprId condition = expression();
   expect(TokenKind::Semi, "Expected ';' after for loop condition");
 
-  Ast::Expr update = expression();
+  Ast::ExprId update = expression();
   expect(TokenKind::RParen, "Expected ')' after for loop update expression");
 
-  Ast::Stmt body = statement();
+  Ast::StmtId body = statement();
 
-  return Ast::For{
-      start.span.extend(getSpan(body)),
-      std::make_unique<Ast::Stmt>(std::move(init)),
-      std::move(condition),
-      std::move(update),
-      std::make_unique<Ast::Stmt>(std::move(body)),
-  };
+  return storage.add(Ast::Stmt{start.span.extend(getSpan(body)),
+                               Ast::For{init, condition, update, body}});
 }
 
-Ast::Stmt Parser::returnStatement() {
+Ast::StmtId Parser::returnStatement() {
   Token start = expect(TokenKind::Return, "Expected 'return'");
 
   if (peek().kind == TokenKind::Semi) {
     Token semi = advance();
 
-    return Ast::Return{start.span.extend(semi.span), std::nullopt};
+    return storage.add(
+        Ast::Stmt{start.span.extend(semi.span), Ast::Return{std::nullopt}});
   } else {
-    Ast::Expr value = expression();
+    Ast::ExprId value = expression();
     Token closing = expect(TokenKind::Semi, "Expected ';' after expression");
 
-    return Ast::Return{start.span.extend(closing.span),
-                       std::optional{std::move(value)}};
+    return storage.add(Ast::Stmt{start.span.extend(closing.span),
+                                 Ast::Return{std::optional{value}}});
   }
 }
 
-Ast::Stmt Parser::expressionStatement() {
-  Ast::Expr expr = expression();
+Ast::StmtId Parser::expressionStatement() {
+  Ast::ExprId expr = expression();
   Token closing = expect(TokenKind::Semi, "Expected ';' after expression");
 
-  return Ast::ExprStmt{getSpan(expr).extend(closing.span), std::move(expr)};
+  return storage.add(
+      Ast::Stmt{getSpan(expr).extend(closing.span), Ast::ExprStmt{expr}});
 }
 
-Ast::Decl Parser::declaration() {
+Ast::DeclId Parser::declaration() {
   switch (peek().kind) {
   case TokenKind::Function:
     return function();
   case TokenKind::Struct:
     return structDeclaration();
   default:
-    throw std::runtime_error("Expected declaration.");
+    throw std::runtime_error("Expected declaration");
   }
 }
 
-Ast::Decl Parser::function() {
+Ast::DeclId Parser::function() {
   Token start = expect(TokenKind::Function, "Expected 'function'");
   Token name = expect(TokenKind::Ident, "Expected function name");
   expect(TokenKind::LParen, "Expected '(' after function name");
@@ -440,14 +434,15 @@ Ast::Decl Parser::function() {
   Token returnType =
       expect(TokenKind::Ident, "Expected function return type after colon");
 
-  Ast::Block body = block();
+  auto [span, body] = block();
 
-  return Ast::Function{start.span.extend(body.span),
-                       name.span.src(tokenizer.src), std::move(params),
-                       returnType.span.src(tokenizer.src), std::move(body)};
+  return storage.add(Ast::Decl{
+      start.span.extend(span),
+      Ast::Function{name.span.src(tokenizer.src), std::move(params),
+                    returnType.span.src(tokenizer.src), std::move(body)}});
 }
 
-Ast::Decl Parser::structDeclaration() {
+Ast::DeclId Parser::structDeclaration() {
   Token start = expect(TokenKind::Struct, "Expected 'struct'");
   Token name = expect(TokenKind::Ident, "Expected struct name");
   expect(TokenKind::LBrace, "Expected '{' after struct name");
@@ -456,15 +451,13 @@ Ast::Decl Parser::structDeclaration() {
 
   Token end = expect(TokenKind::RBrace, "Expected '}' after struct fields");
 
-  return Ast::Struct{
+  return storage.add(Ast::Decl{
       start.span.extend(end.span),
-      name.span.src(tokenizer.src),
-      std::move(structFields),
-  };
+      Ast::Struct{name.span.src(tokenizer.src), std::move(structFields)}});
 }
 
-std::vector<Ast::Decl> Parser::program() {
-  std::vector<Ast::Decl> decls;
+std::vector<Ast::DeclId> Parser::program() {
+  std::vector<Ast::DeclId> decls;
 
   while (peek().kind != TokenKind::Eof) {
     decls.push_back(declaration());
@@ -500,10 +493,9 @@ std::vector<Ast::Field> Parser::fields() {
 Ast::FieldInit Parser::fieldInit() {
   Token ident = expect(TokenKind::Ident, "Expected field name");
   expect(TokenKind::Colon, "Expected colon after field name");
-  Ast::Expr value = expression();
+  Ast::ExprId value = expression();
 
-  return Ast::FieldInit{ident.span.src(tokenizer.src),
-                        std::make_unique<Ast::Expr>(std::move(value))};
+  return Ast::FieldInit{ident.span.src(tokenizer.src), value};
 }
 
 std::vector<Ast::FieldInit> Parser::fieldInits() {
@@ -545,8 +537,8 @@ std::vector<Ast::Parameter> Parser::parameters() {
   return params;
 }
 
-std::vector<Ast::Expr> Parser::arguments() {
-  std::vector<Ast::Expr> args;
+std::vector<Ast::ExprId> Parser::arguments() {
+  std::vector<Ast::ExprId> args;
 
   if (peek().kind != TokenKind::RParen) {
     args.push_back(expression());
@@ -560,10 +552,10 @@ std::vector<Ast::Expr> Parser::arguments() {
   return args;
 };
 
-Ast::Block Parser::block() {
+std::tuple<Span, Ast::Block> Parser::block() {
   Token start = expect(TokenKind::LBrace, "Expected '{'");
 
-  std::vector<Ast::Stmt> stmts;
+  std::vector<Ast::StmtId> stmts;
 
   while (peek().kind != TokenKind::RBrace) {
     stmts.push_back(statement());
@@ -571,7 +563,7 @@ Ast::Block Parser::block() {
 
   Token end = advance();
 
-  return Ast::Block{start.span.extend(end.span), std::move(stmts)};
+  return std::tuple{start.span.extend(end.span), Ast::Block{std::move(stmts)}};
 }
 
 Ast::Operator Parser::tokenToOperator(TokenKind token) {
@@ -604,3 +596,9 @@ Ast::Operator Parser::tokenToOperator(TokenKind token) {
     throw std::runtime_error("Token cannot be converted to operator");
   }
 };
+
+Span Parser::getSpan(Ast::ExprId id) { return storage.get(id).span; }
+
+Span Parser::getSpan(Ast::StmtId id) { return storage.get(id).span; }
+
+Span Parser::getSpan(Ast::DeclId id) { return storage.get(id).span; }
