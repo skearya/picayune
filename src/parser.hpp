@@ -6,12 +6,10 @@
 #include "token.hpp"
 #include "tokenizer.hpp"
 #include <string_view>
-#include <tuple>
 #include <vector>
 
 struct Parser {
   Storage &storage;
-
   Tokenizer tokenizer;
   Token current;
 
@@ -34,6 +32,7 @@ struct Parser {
 
   /* Statements */
   Ast::StmtId statement();
+  Ast::StmtId block();
   Ast::StmtId let();
   Ast::StmtId ifStatement();
   Ast::StmtId whileStatement();
@@ -57,7 +56,6 @@ struct Parser {
   Ast::Parameter parameter();
   std::vector<Ast::Parameter> parameters();
   std::vector<Ast::ExprId> arguments();
-  std::tuple<Span, Ast::Block> block();
 
   Ast::Operator tokenToOperator(TokenKind token);
 

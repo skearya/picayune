@@ -18,7 +18,7 @@ program: declaration* EOF
 
 declaration: function | struct
 
-function: FUNCTION name LPAREN parameters? RPAREN COLON type block
+function: FUNCTION name LPAREN parameters? RPAREN COLON type statement
 
 struct: STRUCT name LBRACE fields? RBRACE
 
@@ -294,11 +294,8 @@ Ast::ExprId Parser::primary() {
 
 Ast::StmtId Parser::statement() {
   switch (peek().kind) {
-  case TokenKind::LBrace: {
-    auto [span, content] = block();
-
-    return storage.add(Ast::Stmt{span, std::move(content)});
-  }
+  case TokenKind::LBrace:
+    return block();
   case TokenKind::Let:
     return let();
   case TokenKind::If:
@@ -312,6 +309,21 @@ Ast::StmtId Parser::statement() {
   default:
     return expressionStatement();
   }
+}
+
+Ast::StmtId Parser::block() {
+  Token start = expect(TokenKind::LBrace, "Expected '{'");
+
+  std::vector<Ast::StmtId> stmts;
+
+  while (peek().kind != TokenKind::RBrace) {
+    stmts.push_back(statement());
+  }
+
+  Token end = advance();
+
+  return storage.add(
+      Ast::Stmt{start.span.extend(end.span), Ast::Block{std::move(stmts)}});
 }
 
 Ast::StmtId Parser::let() {
@@ -434,12 +446,12 @@ Ast::DeclId Parser::function() {
   Token returnType =
       expect(TokenKind::Ident, "Expected function return type after colon");
 
-  auto [span, body] = block();
+  Ast::StmtId body = statement();
 
-  return storage.add(Ast::Decl{
-      start.span.extend(span),
-      Ast::Function{name.span.src(tokenizer.src), std::move(params),
-                    returnType.span.src(tokenizer.src), std::move(body)}});
+  return storage.add(
+      Ast::Decl{start.span.extend(getSpan(body)),
+                Ast::Function{name.span.src(tokenizer.src), std::move(params),
+                              returnType.span.src(tokenizer.src), body}});
 }
 
 Ast::DeclId Parser::structDeclaration() {
@@ -551,20 +563,6 @@ std::vector<Ast::ExprId> Parser::arguments() {
 
   return args;
 };
-
-std::tuple<Span, Ast::Block> Parser::block() {
-  Token start = expect(TokenKind::LBrace, "Expected '{'");
-
-  std::vector<Ast::StmtId> stmts;
-
-  while (peek().kind != TokenKind::RBrace) {
-    stmts.push_back(statement());
-  }
-
-  Token end = advance();
-
-  return std::tuple{start.span.extend(end.span), Ast::Block{std::move(stmts)}};
-}
 
 Ast::Operator Parser::tokenToOperator(TokenKind token) {
   switch (token) {

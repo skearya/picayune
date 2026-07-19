@@ -1,8 +1,6 @@
-#include "backend/llvm.hpp"
 #include "extra/printer.hpp"
 #include "parser.hpp"
 #include "tokenizer.hpp"
-#include "typechecker.hpp"
 #include <fstream>
 #include <print>
 #include <sstream>
@@ -27,19 +25,13 @@ int main(int argc, char **argv) {
   auto buffer = readFile(filename);
   auto source = buffer.str();
 
-  auto tokenizer = Tokenizer{std::string_view{source}};
-  auto parser = Parser{tokenizer};
+  Storage storage{};
+
+  Tokenizer tokenizer{std::string_view{source}};
+  Parser parser{storage, tokenizer};
+
   auto root = parser.program();
 
-  Printer{filename}.printProgram(root);
+  Printer{storage, filename}.printProgram(root);
   std::println();
-
-  Storage ts;
-  auto typechecker = TypeChecker{ts};
-  auto troot = typechecker.check(root);
-
-  Printer{filename, ts.arena}.printProgram(troot);
-  std::println();
-
-  LLVMCodegen{ts}.codegen(troot);
 }

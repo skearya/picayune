@@ -162,7 +162,7 @@ struct Function {
   std::string_view name;
   std::vector<Parameter> params;
   std::string_view returnType;
-  Block body;
+  StmtId body;
 };
 
 using DeclVariant = std::variant<Struct, Function>;
