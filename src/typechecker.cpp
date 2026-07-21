@@ -1,11 +1,10 @@
 #include "typechecker.hpp"
 #include "ast.hpp"
-#include "tast.hpp"
+#include "type.hpp"
 #include "utils.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
-#include <memory>
 #include <optional>
 #include <print>
 #include <stdexcept>
@@ -15,179 +14,171 @@
 #include <variant>
 #include <vector>
 
-TypeChecker::TypeChecker(Storage &ts)
-    : ts{ts}, types{{"void", ts.voidTypeID},
-                    {"string", ts.stringTypeID},
-                    {"char", ts.charTypeID},
-                    {"int", ts.intTypeID},
-                    {"boolean", ts.booleanTypeID}},
-      functions{}, environments{{}}, currentFunction{nullptr} {}
+TypeChecker::TypeChecker(Storage &s)
+    : storage{s}, types{}, environments{{}}, currentFunctionReturnType{},
+      voidId{storage.add(Type::TVoid{})},
+      stringId{storage.add(Type::TString{})},
+      charId{storage.add(Type::TChar{})}, intId{storage.add(Type::TInt{})},
+      booleanId{storage.add(Type::TBoolean{})} {
+  types.insert({"void", voidId});
+  types.insert({"string", stringId});
+  types.insert({"char", charId});
+  types.insert({"int", intId});
+  types.insert({"boolean", booleanId});
+}
 
-std::vector<TAst::Decl>
-TypeChecker::check(const std::vector<Ast::Decl> &program) {
-  std::vector<TAst::Decl> decls;
+void TypeChecker::check(const std::vector<Ast::DeclId> &program) {
+  for (const auto &declId : program) {
+    const Ast::Decl &decl = storage.get(declId);
 
-  for (const auto &decl : program) {
-    if (const auto *structDecl = std::get_if<Ast::Struct>(&decl)) {
-      auto typeId = ts.internType(TAst::TStruct{structDecl->name, {}});
+    if (const auto *structDecl = std::get_if<Ast::Struct>(&decl.node)) {
+      Type::TypeID typeId = storage.add(Type::TStruct{structDecl->name, {}});
 
       types.insert({structDecl->name, typeId});
     }
   }
 
-  for (const auto &decl : program) {
-    if (const auto *structDecl = std::get_if<Ast::Struct>(&decl)) {
-      std::vector<TAst::Field> fields;
+  for (const auto &declId : program) {
+    const Ast::Decl &decl = storage.get(declId);
+
+    if (const auto *structDecl = std::get_if<Ast::Struct>(&decl.node)) {
+      std::vector<Type::Field> fields;
 
       for (const auto &field : structDecl->fields) {
-        auto typeId = lookupType(field.type);
+        std::optional<Type::TypeID> typeId = lookupType(field.type);
 
         if (!typeId.has_value()) {
-          throw std::runtime_error("Field type is not defined");
+          throw std::runtime_error("Struct field type is not defined");
         }
 
-        fields.push_back(TAst::Field{typeId.value(), field.name});
+        fields.push_back(Type::Field{field.name, typeId.value()});
       }
 
-      auto &structType = std::get<TAst::TStruct>(
-          ts.getType(lookupType(structDecl->name).value()));
+      auto &structType = std::get<Type::TStruct>(
+          storage.getMut(lookupType(structDecl->name).value()));
 
-      structType.name = structDecl->name;
       structType.fields = fields;
-
-      decls.push_back(
-          TAst::Struct{structDecl->span, structDecl->name, std::move(fields)});
     }
   }
 
-  for (const auto &decl : program) {
-    if (const auto *function = std::get_if<Ast::Function>(&decl)) {
-      std::vector<TAst::Parameter> params;
+  for (const auto &declId : program) {
+    const Ast::Decl &decl = storage.get(declId);
+
+    if (const auto *function = std::get_if<Ast::Function>(&decl.node)) {
+      std::vector<Type::Parameter> params;
 
       for (const auto &param : function->params) {
-        auto typeId = lookupType(param.type);
+        std::optional<Type::TypeID> typeId = lookupType(param.type);
 
         if (!typeId.has_value()) {
           throw std::runtime_error("Parameter type is not defined");
         }
 
-        params.push_back(TAst::Parameter{typeId.value(), param.name});
+        params.push_back(Type::Parameter{param.name, typeId.value()});
       }
 
-      auto returnTypeId = lookupType(function->returnType);
+      std::optional<Type::TypeID> returnTypeId =
+          lookupType(function->returnType);
 
       if (!returnTypeId.has_value()) {
         throw std::runtime_error("Return type is not defined");
       }
 
-      auto typeId = ts.internType(
-          TAst::TFunction{std::move(params), returnTypeId.value()});
+      Type::TypeID typeId =
+          storage.add(Type::TFunction{std::move(params), returnTypeId.value()});
 
-      functions.insert({function->name, typeId});
+      environments.back().insert({function->name, typeId});
     }
   }
 
-  for (const auto &decl : program) {
-    if (const auto *function = std::get_if<Ast::Function>(&decl)) {
-      const auto &functionType = std::get<TAst::TFunction>(
-          ts.getType(lookupVar(function->name).value()));
+  for (const auto &declId : program) {
+    const Ast::Decl &decl = storage.get(declId);
 
-      std::unordered_map<std::string_view, TAst::TypeID> params;
+    if (const auto *function = std::get_if<Ast::Function>(&decl.node)) {
+      const auto &functionType = std::get<Type::TFunction>(
+          storage.get(lookupVar(function->name).value()));
+
+      std::unordered_map<std::string_view, Type::TypeID> params;
 
       for (size_t i = 0; i < function->params.size(); i++) {
         params.insert(
             {function->params[i].name, functionType.parameters[i].type});
       }
 
-      currentFunction = &functionType;
       environments.push_back(std::move(params));
+      currentFunctionReturnType = functionType.returnType;
 
-      auto block = checkBlock(function->body);
+      checkStmt(function->body);
 
       environments.pop_back();
 
-      if (functionType.returnType != ts.voidTypeID && !doesBlockReturn(block)) {
+      if (functionType.returnType != voidId && !doesReturn(function->body)) {
         throw std::runtime_error(
             "Function does not return value in all branches");
       }
-
-      decls.push_back(TAst::Function{
-          function->span, function->name, functionType.parameters,
-          functionType.returnType, std::move(block)});
     }
   }
-
-  return decls;
 }
 
-TAst::Expr TypeChecker::checkExpr(const Ast::Expr &node) {
-  return std::visit(*this, node);
+Type::TypeID TypeChecker::checkExpr(Ast::ExprId exprId) {
+  const Ast::Expr &expr = storage.get(exprId);
+
+  return std::visit(*this, expr.node);
 }
 
-TAst::Expr TypeChecker::operator()(const Ast::String &node) {
-  return TAst::String{ts.stringTypeID, node.span, node.value};
-}
+Type::TypeID TypeChecker::operator()(const Ast::String &) { return stringId; }
 
-TAst::Expr TypeChecker::operator()(const Ast::Char &node) {
-  return TAst::Char{ts.charTypeID, node.span, node.value};
-}
+Type::TypeID TypeChecker::operator()(const Ast::Char &) { return charId; }
 
-TAst::Expr TypeChecker::operator()(const Ast::Number &node) {
-  return TAst::Number{ts.intTypeID, node.span, node.value};
-}
+Type::TypeID TypeChecker::operator()(const Ast::Number &) { return intId; }
 
-TAst::Expr TypeChecker::operator()(const Ast::Boolean &node) {
-  return TAst::Boolean{ts.booleanTypeID, node.span, node.value};
-}
+Type::TypeID TypeChecker::operator()(const Ast::Boolean &) { return booleanId; }
 
-TAst::Expr TypeChecker::operator()(const Ast::StructInit &node) {
-  auto typeId = lookupType(node.name);
+Type::TypeID TypeChecker::operator()(const Ast::StructInit &node) {
+  std::optional<Type::TypeID> typeId = lookupType(node.name);
 
   if (!typeId.has_value()) {
     throw std::runtime_error("Struct does not exist");
   }
 
-  const auto &type = ts.getType(typeId.value());
+  const auto &type = storage.get(typeId.value());
 
-  if (const auto *structType = std::get_if<TAst::TStruct>(&type)) {
-    std::vector<TAst::FieldInit> fieldInits;
+  if (const auto *structType = std::get_if<Type::TStruct>(&type)) {
+    if (structType->fields.size() != node.fields.size()) {
+      throw std::runtime_error("Struct initialization error");
+    }
 
     for (const auto &fieldInit : node.fields) {
-      auto structField = std::ranges::find_if(
-          structType->fields, [&](const auto &structField) {
-            return structField.name == fieldInit.name;
+      auto fieldType =
+          std::ranges::find_if(structType->fields, [&](const auto &fieldType) {
+            return fieldType.name == fieldInit.name;
           });
 
-      if (structField == std::ranges::end(structType->fields)) {
+      if (fieldType == std::ranges::end(structType->fields)) {
         throw std::runtime_error("Struct field does not exist");
       }
 
-      auto fieldValue = checkExpr(*fieldInit.value);
-      auto fieldValueTypeId = getTypeID(fieldValue);
+      Type::TypeID fieldInitTypeId = checkExpr(fieldInit.value);
 
-      if (structField->type != fieldValueTypeId) {
+      if (fieldType->type != fieldInitTypeId) {
         throw std::runtime_error("Mismatched struct field type");
       }
-
-      fieldInits.emplace_back(
-          fieldInit.name, std::make_unique<TAst::Expr>(std::move(fieldValue)));
     }
 
-    return TAst::StructInit{typeId.value(), node.span, node.name,
-                            std::move(fieldInits)};
+    return typeId.value();
   } else {
     throw std::runtime_error("Type is not a struct");
   }
 }
 
-TAst::Expr TypeChecker::operator()(const Ast::Get &node) {
-  auto expr = checkExpr(*node.expr);
-  const auto &exprType = ts.getType(getTypeID(expr));
+Type::TypeID TypeChecker::operator()(const Ast::Get &node) {
+  Type::TypeID exprTypeId = checkExpr(node.expr);
+  const auto &exprType = storage.get(exprTypeId);
 
-  if (const auto *structType = std::get_if<TAst::TStruct>(&exprType)) {
+  if (const auto *structType = std::get_if<Type::TStruct>(&exprType)) {
     auto structField =
-        std::ranges::find_if(structType->fields, [&](const auto &structField) {
-          return structField.name == node.field;
+        std::ranges::find_if(structType->fields, [&](const auto &fieldType) {
+          return fieldType.name == node.field;
         });
 
     if (structField == std::ranges::end(structType->fields)) {
@@ -195,268 +186,202 @@ TAst::Expr TypeChecker::operator()(const Ast::Get &node) {
           "Tried getting struct field that does not exist");
     }
 
-    return TAst::Get{structField->type, node.span,
-                     std::make_unique<TAst::Expr>(std::move(expr)), node.field};
+    return structField->type;
   } else {
     throw std::runtime_error("Requested field from non-struct");
   }
 }
 
-TAst::Expr TypeChecker::operator()(const Ast::Ident &node) {
-  auto typeId = lookupVar(node.name);
+Type::TypeID TypeChecker::operator()(const Ast::Ident &node) {
+  std::optional<Type::TypeID> typeId = lookupVar(node.name);
 
   if (!typeId.has_value()) {
     throw std::runtime_error("Identifier is not defined");
   }
 
-  return TAst::Ident{typeId.value(), node.span, node.name};
+  return typeId.value();
 }
 
-TAst::Expr TypeChecker::operator()(const Ast::Binary &node) {
-  auto left = std::visit(*this, *node.left);
-  auto right = std::visit(*this, *node.right);
-
-  auto leftTypeId = getTypeID(left);
-  auto rightTypeId = getTypeID(right);
+Type::TypeID TypeChecker::operator()(const Ast::Binary &node) {
+  Type::TypeID leftTypeId = checkExpr(node.left);
+  Type::TypeID rightTypeId = checkExpr(node.right);
 
   if (leftTypeId != rightTypeId) {
     throw std::runtime_error("Expected binary operands to be the same type");
   }
-
-  TAst::TypeID type;
 
   switch (node.op) {
   case Ast::Operator::Add:
   case Ast::Operator::Sub:
   case Ast::Operator::Mul:
   case Ast::Operator::Div:
-    if (leftTypeId != ts.intTypeID) {
+    if (leftTypeId != intId) {
       throw std::runtime_error(
           "Expected arithmetic operator to be used with numbers");
     }
 
-    type = ts.intTypeID;
-    break;
+    return intId;
   case Ast::Operator::Eq:
   case Ast::Operator::NotEq:
-    type = ts.booleanTypeID;
-    break;
+    return booleanId;
   case Ast::Operator::Lt:
   case Ast::Operator::LtEq:
   case Ast::Operator::Gt:
   case Ast::Operator::GtEq:
-    if (leftTypeId != ts.intTypeID) {
+    if (leftTypeId != intId) {
       throw std::runtime_error(
           "Expected comparison operator to be used with numbers");
     }
 
-    type = ts.booleanTypeID;
-    break;
+    return booleanId;
   case Ast::Operator::Or:
   case Ast::Operator::And:
-    if (leftTypeId != ts.booleanTypeID) {
+    if (leftTypeId != booleanId) {
       throw std::runtime_error(
           "Expected logical operator to be used with booleans");
     }
 
-    type = ts.booleanTypeID;
-    break;
+    return booleanId;
   }
-
-  return TAst::Binary{type, node.span,
-                      std::make_unique<TAst::Expr>(std::move(left)), node.op,
-                      std::make_unique<TAst::Expr>(std::move(right))};
 }
 
-TAst::Expr TypeChecker::operator()(const Ast::Call &node) {
-  auto callee = checkExpr(*node.function);
-  const auto &calleeType = ts.getType(getTypeID(callee));
+Type::TypeID TypeChecker::operator()(const Ast::Call &node) {
+  Type::TypeID callee = checkExpr(node.function);
+  const auto &calleeType = storage.get(callee);
 
-  if (const auto *functionType = std::get_if<TAst::TFunction>(&calleeType)) {
+  if (const auto *functionType = std::get_if<Type::TFunction>(&calleeType)) {
     if (node.arguments.size() != functionType->parameters.size()) {
       throw std::runtime_error("Function call arity mismatch");
     }
 
-    std::vector<TAst::Expr> arguments;
-
     for (size_t i = 0; i < functionType->parameters.size(); i++) {
-      auto arg = checkExpr(node.arguments.at(i));
-      auto param = functionType->parameters.at(i);
+      Type::TypeID arg = checkExpr(node.arguments.at(i));
+      const auto &param = functionType->parameters.at(i);
 
-      auto argTypeId = getTypeID(arg);
-      auto paramTypeId = param.type;
-
-      if (argTypeId != paramTypeId) {
+      if (arg != param.type) {
         throw std::runtime_error("Function call argument type mismatch");
       }
-
-      arguments.push_back(std::move(arg));
     }
 
-    return TAst::Call{functionType->returnType, node.span,
-                      std::make_unique<TAst::Expr>(std::move(callee)),
-                      std::move(arguments)};
+    return functionType->returnType;
   } else {
     throw std::runtime_error("Called non-function type");
   }
 }
 
-TAst::Expr TypeChecker::operator()(const Ast::Assign &node) {
-  auto targetTypeId = lookupVar(node.variable);
+Type::TypeID TypeChecker::operator()(const Ast::Assign &node) {
+  std::optional<Type::TypeID> target = lookupVar(node.variable);
 
-  if (!targetTypeId.has_value()) {
+  if (!target.has_value()) {
     throw std::runtime_error("Assignment target is not defined");
   }
 
-  auto value = checkExpr(*node.value);
-  auto valueTypeId = getTypeID(value);
+  Type::TypeID value = checkExpr(node.value);
 
-  if (targetTypeId != valueTypeId) {
+  if (target != value) {
     throw std::runtime_error("Assignment value doesn't match expected type");
   }
 
-  return TAst::Assign{valueTypeId, node.span, node.variable,
-                      std::make_unique<TAst::Expr>(std::move(value))};
+  return value;
 }
 
-TAst::Expr TypeChecker::operator()(const Ast::Grouping &node) {
-  auto inner = checkExpr(*node.inner);
-  auto innerTypeId = getTypeID(inner);
+Type::TypeID TypeChecker::operator()(const Ast::Grouping &node) {
+  Type::TypeID inner = checkExpr(node.inner);
 
-  return TAst::Grouping{innerTypeId, node.span,
-                        std::make_unique<TAst::Expr>(std::move(inner))};
+  return inner;
 }
 
-TAst::Stmt TypeChecker::checkStmt(const Ast::Stmt &node) {
-  return std::visit(*this, node);
+void TypeChecker::checkStmt(const Ast::StmtId stmtId) {
+  const Ast::Stmt &stmt = storage.get(stmtId);
+
+  return std::visit(*this, stmt.node);
 }
 
-TAst::Stmt TypeChecker::operator()(const Ast::Block &node) {
-  return checkBlock(node);
+void TypeChecker::operator()(const Ast::Block &node) {
+  environments.push_back({});
+
+  for (auto &stmt : node.statements) {
+    checkStmt(stmt);
+  }
+
+  environments.pop_back();
 }
 
-TAst::Stmt TypeChecker::operator()(const Ast::Let &node) {
-  auto init = checkExpr(node.initializer);
-  auto initTypeId = getTypeID(init);
+void TypeChecker::operator()(const Ast::Let &node) {
+  Type::TypeID init = checkExpr(node.initializer);
 
-  environments.back().insert({node.name, initTypeId});
-
-  return TAst::Let{node.span, node.name, std::move(init)};
+  environments.back().insert({node.name, init});
 }
 
-TAst::Stmt TypeChecker::operator()(const Ast::If &node) {
-  auto cond = checkExpr(node.condition);
-  auto condTypeId = getTypeID(cond);
+void TypeChecker::operator()(const Ast::If &node) {
+  Type::TypeID cond = checkExpr(node.condition);
 
-  if (condTypeId != ts.booleanTypeID) {
+  if (cond != booleanId) {
     throw std::runtime_error(
         "Expected if statement's condition's type to be 'bool'");
   }
 
-  auto thenStatement = checkStmt(*node.thenStatement);
-  auto elseStatement = node.elseStatement.transform([&](const auto &stmt) {
-    return std::make_unique<TAst::Stmt>(checkStmt(*stmt));
-  });
+  checkStmt(node.thenStatement);
 
-  return TAst::If{node.span, std::move(cond),
-                  std::make_unique<TAst::Stmt>(std::move(thenStatement)),
-                  std::move(elseStatement)};
+  if (node.elseStatement.has_value()) {
+    checkStmt(node.elseStatement.value());
+  }
 }
 
-TAst::Stmt TypeChecker::operator()(const Ast::While &node) {
-  auto cond = checkExpr(node.condition);
-  auto condTypeId = getTypeID(cond);
+void TypeChecker::operator()(const Ast::While &node) {
+  Type::TypeID cond = checkExpr(node.condition);
 
-  if (condTypeId != ts.booleanTypeID) {
+  if (cond != booleanId) {
     throw std::runtime_error(
         "Expected while statement's condition's type to be 'bool'");
   }
 
-  auto body = checkStmt(*node.body);
-
-  return TAst::While{node.span, std::move(cond),
-                     std::make_unique<TAst::Stmt>(std::move(body))};
+  checkStmt(node.body);
 }
 
-TAst::Stmt TypeChecker::operator()(const Ast::For &node) {
-  auto init = checkStmt(*node.initializer);
+void TypeChecker::operator()(const Ast::For &node) {
+  checkStmt(node.initializer);
 
-  auto cond = checkExpr(node.condition);
-  auto condTypeId = getTypeID(cond);
+  Type::TypeID cond = checkExpr(node.condition);
 
-  if (condTypeId != ts.booleanTypeID) {
+  if (cond != booleanId) {
     throw std::runtime_error(
         "Expected for statement's condition's type to be 'bool'");
   }
 
-  auto update = checkExpr(node.update);
-  auto body = checkStmt(*node.body);
+  checkExpr(node.update);
 
-  std::vector<TAst::Stmt> statements{};
-
-  statements.push_back(std::move(init));
-  statements.push_back(
-      TAst::While{node.span, std::move(cond),
-                  std::make_unique<TAst::Stmt>(std::move(body))});
-
-  return TAst::Block{node.span, std::move(statements)};
+  checkStmt(node.body);
 }
 
-TAst::Stmt TypeChecker::operator()(const Ast::Return &node) {
-  auto returnTypeId = currentFunction->returnType;
-
+void TypeChecker::operator()(const Ast::Return &node) {
   if (node.value.has_value()) {
-    auto value = checkExpr(node.value.value());
-    auto valueTypeId = getTypeID(value);
+    Type::TypeID value = checkExpr(node.value.value());
 
-    if (valueTypeId != returnTypeId) {
+    if (value != currentFunctionReturnType) {
       throw std::runtime_error(
           "Expected return type to match function return type");
     }
-
-    return TAst::Return{node.span, std::move(value)};
-  } else {
-    if (returnTypeId != ts.voidTypeID) {
-      throw std::runtime_error("Expected return value to exist");
-    }
-
-    return TAst::Return{node.span, std::nullopt};
+  } else if (currentFunctionReturnType != voidId) {
+    throw std::runtime_error("Expected return value to exist");
   }
 }
 
-TAst::Stmt TypeChecker::operator()(const Ast::ExprStmt &node) {
-  return TAst::ExprStmt{node.span, checkExpr(node.expression)};
+void TypeChecker::operator()(const Ast::ExprStmt &node) {
+  checkExpr(node.expression);
 }
 
-TAst::Block TypeChecker::checkBlock(const Ast::Block &node) {
-  environments.push_back({});
-
-  std::vector<TAst::Stmt> body;
-
-  for (auto &stmt : node.statements) {
-    body.push_back(checkStmt(stmt));
-  }
-
-  environments.pop_back();
-
-  return TAst::Block{node.span, std::move(body)};
-}
-
-std::optional<TAst::TypeID> TypeChecker::lookupVar(std::string_view name) {
+std::optional<Type::TypeID> TypeChecker::lookupVar(std::string_view name) {
   for (auto env = environments.rbegin(); env != environments.rend(); env++) {
     if (env->contains(name)) {
       return env->at(name);
     }
   }
 
-  if (functions.contains(name)) {
-    return functions.at(name);
-  }
-
   return std::nullopt;
 }
 
-std::optional<TAst::TypeID> TypeChecker::lookupType(std::string_view ident) {
+std::optional<Type::TypeID> TypeChecker::lookupType(std::string_view ident) {
   if (types.contains(ident)) {
     return types.at(ident);
   }
@@ -464,7 +389,7 @@ std::optional<TAst::TypeID> TypeChecker::lookupType(std::string_view ident) {
   return std::nullopt;
 }
 
-bool doesBlockReturn(const TAst::Block &node) {
+bool TypeChecker::doesBlockReturn(const Ast::Block &node) {
   for (size_t i = 0; i < node.statements.size(); i++) {
     if (doesReturn(node.statements.at(i))) {
       if (i != node.statements.size() - 1) {
@@ -478,17 +403,20 @@ bool doesBlockReturn(const TAst::Block &node) {
   return false;
 }
 
-bool doesReturn(const TAst::Stmt &node) {
+bool TypeChecker::doesReturn(Ast::StmtId stmtId) {
+  const Ast::Stmt &stmt = storage.get(stmtId);
+
   return std::visit(
-      overloads{[](const TAst::Block &node) { return doesBlockReturn(node); },
-                [](const TAst::Let &) { return false; },
-                [](const TAst::If &node) {
+      overloads{[&](const Ast::Block &node) { return doesBlockReturn(node); },
+                [&](const Ast::Let &) { return false; },
+                [&](const Ast::If &node) {
                   return node.elseStatement.has_value() &&
-                         doesReturn(*node.thenStatement) &&
-                         doesReturn(*node.elseStatement.value());
+                         doesReturn(node.thenStatement) &&
+                         doesReturn(node.elseStatement.value());
                 },
-                [](const TAst::While &) { return false; },
-                [](const TAst::Return &) { return true; },
-                [](const TAst::ExprStmt &) { return false; }},
-      node);
+                [&](const Ast::While &) { return false; },
+                [&](const Ast::For &) { return false; },
+                [&](const Ast::Return &) { return true; },
+                [&](const Ast::ExprStmt &) { return false; }},
+      stmt.node);
 }

@@ -23,4 +23,6 @@ struct Storage {
   const Ast::Stmt &get(Ast::StmtId stmtId);
   const Ast::Decl &get(Ast::DeclId DeclId);
   const Type::Type &get(Type::TypeID typeId);
+
+  Type::Type &getMut(Type::TypeID typeId);
 };

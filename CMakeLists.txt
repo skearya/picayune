@@ -22,7 +22,6 @@ add_executable(${PROJECT_NAME}
     src/tokenizer.cpp
     src/typechecker.cpp
     src/storage.cpp
-    src/backend/llvm.cpp
     src/extra/printer.cpp
 )
 

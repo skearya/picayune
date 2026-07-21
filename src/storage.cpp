@@ -54,3 +54,5 @@ const Ast::Decl &Storage::get(Ast::DeclId declId) {
 const Type::Type &Storage::get(Type::TypeID typeId) {
   return types.at(typeId.id);
 }
+
+Type::Type &Storage::getMut(Type::TypeID typeId) { return types.at(typeId.id); }

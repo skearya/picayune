@@ -1,6 +1,7 @@
 #include "extra/printer.hpp"
 #include "parser.hpp"
 #include "tokenizer.hpp"
+#include "typechecker.hpp"
 #include <fstream>
 #include <print>
 #include <sstream>
@@ -30,8 +31,12 @@ int main(int argc, char **argv) {
   Tokenizer tokenizer{std::string_view{source}};
   Parser parser{storage, tokenizer};
 
-  auto root = parser.program();
+  auto program = parser.program();
 
-  Printer{storage, filename}.printProgram(root);
+  TypeChecker typechecker{storage};
+  typechecker.check(program);
+
+  Printer{storage, filename}.printProgram(program);
+
   std::println();
 }

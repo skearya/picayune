@@ -2,52 +2,55 @@
 
 #include "ast.hpp"
 #include "storage.hpp"
-#include "tast.hpp"
+#include "type.hpp"
 #include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
 
 struct TypeChecker {
-  Storage &ts;
-  std::unordered_map<std::string_view, TAst::TypeID> types;
-  std::unordered_map<std::string_view, TAst::TypeID> functions;
-  std::vector<std::unordered_map<std::string_view, TAst::TypeID>> environments;
-  const TAst::TFunction *currentFunction;
+  Storage &storage;
+  std::unordered_map<std::string_view, Type::TypeID> types;
+  std::vector<std::unordered_map<std::string_view, Type::TypeID>> environments;
+  Type::TypeID currentFunctionReturnType;
+
+  Type::TypeID voidId;
+  Type::TypeID stringId;
+  Type::TypeID charId;
+  Type::TypeID intId;
+  Type::TypeID booleanId;
 
   TypeChecker(Storage &ts);
 
-  std::vector<TAst::Decl> check(const std::vector<Ast::Decl> &program);
+  void check(const std::vector<Ast::DeclId> &program);
 
-  TAst::Expr checkExpr(const Ast::Expr &node);
+  Type::TypeID checkExpr(Ast::ExprId ExprId);
 
-  TAst::Expr operator()(const Ast::String &node);
-  TAst::Expr operator()(const Ast::Char &node);
-  TAst::Expr operator()(const Ast::Number &node);
-  TAst::Expr operator()(const Ast::Boolean &node);
-  TAst::Expr operator()(const Ast::StructInit &node);
-  TAst::Expr operator()(const Ast::Get &node);
-  TAst::Expr operator()(const Ast::Ident &node);
-  TAst::Expr operator()(const Ast::Binary &node);
-  TAst::Expr operator()(const Ast::Call &node);
-  TAst::Expr operator()(const Ast::Assign &node);
-  TAst::Expr operator()(const Ast::Grouping &node);
+  Type::TypeID operator()(const Ast::String &node);
+  Type::TypeID operator()(const Ast::Char &node);
+  Type::TypeID operator()(const Ast::Number &node);
+  Type::TypeID operator()(const Ast::Boolean &node);
+  Type::TypeID operator()(const Ast::StructInit &node);
+  Type::TypeID operator()(const Ast::Get &node);
+  Type::TypeID operator()(const Ast::Ident &node);
+  Type::TypeID operator()(const Ast::Binary &node);
+  Type::TypeID operator()(const Ast::Call &node);
+  Type::TypeID operator()(const Ast::Assign &node);
+  Type::TypeID operator()(const Ast::Grouping &node);
 
-  TAst::Stmt checkStmt(const Ast::Stmt &node);
+  void checkStmt(Ast::StmtId);
 
-  TAst::Stmt operator()(const Ast::Block &node);
-  TAst::Stmt operator()(const Ast::Let &node);
-  TAst::Stmt operator()(const Ast::If &node);
-  TAst::Stmt operator()(const Ast::While &node);
-  TAst::Stmt operator()(const Ast::For &node);
-  TAst::Stmt operator()(const Ast::Return &node);
-  TAst::Stmt operator()(const Ast::ExprStmt &node);
+  void operator()(const Ast::Block &node);
+  void operator()(const Ast::Let &node);
+  void operator()(const Ast::If &node);
+  void operator()(const Ast::While &node);
+  void operator()(const Ast::For &node);
+  void operator()(const Ast::Return &node);
+  void operator()(const Ast::ExprStmt &node);
 
-  TAst::Block checkBlock(const Ast::Block &node);
+  std::optional<Type::TypeID> lookupVar(std::string_view name);
+  std::optional<Type::TypeID> lookupType(std::string_view ident);
 
-  std::optional<TAst::TypeID> lookupVar(std::string_view name);
-  std::optional<TAst::TypeID> lookupType(std::string_view ident);
+  bool doesBlockReturn(const Ast::Block &node);
+  bool doesReturn(Ast::StmtId stmtId);
 };
-
-bool doesBlockReturn(const TAst::Block &node);
-bool doesReturn(const TAst::Stmt &node);
