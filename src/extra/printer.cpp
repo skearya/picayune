@@ -222,7 +222,7 @@ void Printer::printProgram(const std::vector<Ast::DeclId> &prog) {
 
 void Printer::startPrint(std::string_view prefix, std::string_view label,
                          bool isLeft) {
-  std::print("\033[90m");
+  std::print("\033[30m");
 
   if (prefix.empty()) {
     std::print("> ");
@@ -257,7 +257,7 @@ void Printer::printHeader(uint8_t color, std::string_view label,
 
   std::print("\033[90m");
   std::print("\033[3m");
-  std::print(" - [{}:{}:{}]", filename, span.line, span.start + 1);
+  std::print(" [line {}]", span.line);
   std::print("\033[23m");
   std::print("\033[39m");
 
